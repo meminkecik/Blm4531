@@ -1,0 +1,44 @@
+# Build artifacts
+bin/
+obj/
+**/bin/
+**/obj/
+
+# Visual Studio / Rider / VS Code
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+# Logs
+*.log
+logs/
+
+# Dotnet
+*.dll
+*.pdb
+*.cache
+*.exe
+*.mdb
+*.db
+
+# Publish
+publish/
+/app/publish/
+/app/build/
+
+# EF Migrations snapshots cache
+Migrations/obj/
+
+# Environment files
+*.env
+.env*
+
+# Uploaded files
+wwwroot/uploads/
+
+# OS
+Thumbs.db
+.DS_Store
+

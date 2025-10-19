@@ -1,0 +1,38 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: nearest-postgres
+    environment:
+      POSTGRES_DB: NearestDb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - nearest-network
+
+  # .NET API
+  nearest-api:
+    build: .
+    container_name: nearest-api
+    ports:
+      - "5000:8080"
+      - "5001:443"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Host=postgres;Database=NearestDb;Username=postgres;Password=postgres
+      - Jwt__Key=your-super-secret-key-that-is-at-least-32-characters-long
+    depends_on:
+      - postgres
+    networks:
+      - nearest-network
+
+volumes:
+  postgres_data:
+
+networks:
+  nearest-network:
+    driver: bridge

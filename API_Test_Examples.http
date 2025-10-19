@@ -1,0 +1,82 @@
+### Firma Kayıt
+POST http://localhost:5000/api/auth/register
+Content-Type: application/json
+
+{
+  "firstName": "Ahmet",
+  "lastName": "Yılmaz",
+  "companyName": "Yılmaz Oto Kurtarma",
+  "phoneNumber": "05321234567",
+  "city": "İstanbul",
+  "district": "Kadıköy",
+  "fullAddress": "Bağdat Caddesi No:123 Kadıköy/İstanbul",
+  "latitude": 41.0082,
+  "longitude": 29.0094,
+  "serviceCity": "İstanbul",
+  "serviceDistrict": "Kadıköy",
+  "email": "ahmet@yilmazoto.com",
+  "password": "123456"
+}
+
+### Firma Giriş
+POST http://localhost:5000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "ahmet@yilmazoto.com",
+  "password": "123456"
+}
+
+### Tüm Firmaları Listele
+GET http://localhost:5000/api/companies
+
+### En Yakın Firmaları Bul
+GET http://localhost:5000/api/companies/nearest?latitude=41.0082&longitude=29.0094&limit=5
+
+### Ticket Oluştur
+POST http://localhost:5000/api/tickets
+Content-Type: application/json
+
+{
+  "firstName": "Mehmet",
+  "lastName": "Demir",
+  "phoneNumber": "05431234567",
+  "email": "mehmet@example.com",
+  "subject": "Araç Kurtarma Talebi",
+  "message": "Aracım bozuldu, yardıma ihtiyacım var."
+}
+
+### Firmaların Ticket'larını Listele (JWT Token gerekli)
+GET http://localhost:5000/api/tickets
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
+
+### Tüm İlleri Listele
+GET http://localhost:5000/api/address/cities
+
+### Belirli İle Ait İlçeleri Listele
+GET http://localhost:5000/api/address/districts/34
+
+### Adres Verilerini Güncelle (JWT Token gerekli)
+PUT http://localhost:5000/api/address
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
+
+### Admin Giriş
+POST http://localhost:5000/api/admin/login
+Content-Type: application/json
+
+{
+  "email": "nearestmek@gmail.com",
+  "password": "145236Aa**"
+}
+
+### Admin - Adres Verilerini Güncelle
+PUT http://localhost:5000/api/admin/address
+Authorization: Bearer YOUR_ADMIN_JWT_TOKEN_HERE
+
+### Admin - Tüm Ticket'ları Listele
+GET http://localhost:5000/api/admin/tickets
+Authorization: Bearer YOUR_ADMIN_JWT_TOKEN_HERE
+
+### Admin - Profil Bilgileri
+GET http://localhost:5000/api/admin/profile
+Authorization: Bearer YOUR_ADMIN_JWT_TOKEN_HERE
