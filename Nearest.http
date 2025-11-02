@@ -1,6 +1,7 @@
 @Nearest_HostAddress = http://localhost:5247
 
-GET {{Nearest_HostAddress}}/weatherforecast/
-Accept: application/json
+### Profil Bilgileri (Admin veya Company)
+GET {{Nearest_HostAddress}}/api/profile
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
 
 ###

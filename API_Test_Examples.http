@@ -77,6 +77,6 @@ Authorization: Bearer YOUR_ADMIN_JWT_TOKEN_HERE
 GET http://localhost:5000/api/admin/tickets
 Authorization: Bearer YOUR_ADMIN_JWT_TOKEN_HERE
 
-### Admin - Profil Bilgileri
-GET http://localhost:5000/api/admin/profile
-Authorization: Bearer YOUR_ADMIN_JWT_TOKEN_HERE
+### Profil Bilgileri (Admin veya Company)
+GET http://localhost:5000/api/profile
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
