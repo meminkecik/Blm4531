@@ -56,6 +56,10 @@ dotnet run
 ### Kimlik Doğrulama
 - `POST /api/auth/register` - Firma kayıt
 - `POST /api/auth/login` - Firma giriş
+- `POST /api/admin/login` - Admin giriş
+
+### Profil
+- `GET /api/profile` - Profil bilgileri (Admin veya Company, JWT gerekli)
 
 ### Firmalar
 - `GET /api/companies` - Tüm firmaları listele
