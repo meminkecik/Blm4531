@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+
 namespace Nearest.DTOs.TowTruck
 {
 	public class TowTruckDto
@@ -6,6 +9,9 @@ namespace Nearest.DTOs.TowTruck
 		public string LicensePlate { get; set; } = string.Empty;
 		public string DriverName { get; set; } = string.Empty;
 		public string? DriverPhotoUrl { get; set; }
+		public bool IsActive { get; set; }
+		public DateTime CreatedAt { get; set; }
+		public DateTime UpdatedAt { get; set; }
 		public List<TowTruckAreaDto> OperatingAreas { get; set; } = new();
 	}
 
