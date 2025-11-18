@@ -258,21 +258,102 @@ var tokenDescriptor = new SecurityTokenDescriptor {
 
 Konum tabanlı arama işlemlerini yönetir.
 
-#### GetNearestCompaniesAsync - Satır 19-43
+#### GetNearestCompaniesAsync - Satır 19-100
 ```csharp
-var companies = await _context.Companies
-    .Where(c => c.IsActive && c.Latitude.HasValue && c.Longitude.HasValue)
-    .ToListAsync();
+var baseQuery = _context.Companies.Where(c => c.IsActive);
+List<Company> companies = new List<Company>();
 
-foreach (var company in companyDtos) {
-    company.Distance = CalculateDistance(latitude, longitude, 
-        company.Latitude.Value, company.Longitude.Value);
+// Step 1: Try to get companies from the user's district
+if (districtId.HasValue)
+{
+    companies = await baseQuery
+        .Where(c => c.DistrictId == districtId.Value)
+        .ToListAsync();
+
+    // Step 2: If no companies found in the district, try to find companies in the nearest district
+    if (!companies.Any() && provinceId.HasValue)
+    {
+        // Get all districts in the province
+        var districtsInProvince = await _context.CityDistricts
+            .Include(cd => cd.District)
+            .Where(cd => cd.City.ProvinceId == provinceId.Value)
+            .Select(cd => new { 
+                DistrictId = cd.District.DistrictId,
+                DistrictName = cd.District.DistrictName
+            })
+            .ToListAsync();
+
+        // Get companies in each district
+        foreach (var district in districtsInProvince)
+        {
+            if (district.DistrictId == districtId.Value)
+                continue; // Skip the user's district as we already checked it
+
+            var companiesInDistrict = await baseQuery
+                .Where(c => c.DistrictId == district.DistrictId)
+                .ToListAsync();
+
+            if (companiesInDistrict.Any())
+            {
+                companies = companiesInDistrict;
+                break;
+            }
+        }
+    }
+}
+
+// Step 3: If still no companies found, try to get companies from the user's province
+if (!companies.Any() && provinceId.HasValue)
+{
+    companies = await baseQuery
+        .Where(c => c.ProvinceId == provinceId.Value)
+        .ToListAsync();
+}
+
+// Step 4: If still no companies found, return random companies
+if (!companies.Any())
+{
+    companies = await baseQuery.ToListAsync();
 }
 ```
+
 **Ne işe yarar?**
-- Aktif firmaları çeker
-- Her firma için mesafeyi hesaplar
-- Mesafeye göre sıralar ve limit kadar döndürür
+- Kapsamlı bir fallback mekanizması ile en uygun firmaları bulur:
+  1. Önce kullanıcının bulunduğu ilçedeki firmaları listeler
+  2. İlçede firma yoksa, aynı ildeki diğer ilçelerdeki firmaları arar
+  3. İlde firma yoksa, tüm il genelindeki firmalara düşer
+  4. Hiç firma bulunamazsa, tüm aktif firmaları listeler
+- Sonrasında (varsa) kullanıcı koordinatına göre mesafe hesaplar ve en yakından uzağa sıralar
+
+#### GetProvinceAndDistrictFromCoordinatesAsync - Satır 127-200
+```csharp
+// Use Nominatim OpenStreetMap API for reverse geocoding
+string url = $"https://nominatim.openstreetmap.org/reverse?format=json&lat={latitude}&lon={longitude}&zoom=18&addressdetails=1";
+
+var geocodeResponse = JsonSerializer.Deserialize<NominatimResponse>(content);
+
+// Extract province and district from the response
+string? provinceName = geocodeResponse.Address.Province ?? geocodeResponse.Address.State;
+string? districtName = geocodeResponse.Address.District ?? geocodeResponse.Address.County;
+
+// Find the province in the database
+var province = await _context.Cities
+    .FirstOrDefaultAsync(c => c.CityName.ToLower() == provinceName.ToLower());
+
+// Find the district in the database
+var district = await _context.Districts
+    .FirstOrDefaultAsync(d => d.DistrictName.ToLower() == districtName.ToLower());
+
+// Verify that the district belongs to the province
+var cityDistrict = await _context.CityDistricts
+    .FirstOrDefaultAsync(cd => cd.CityId == province.Id && cd.DistrictId == district.Id);
+```
+
+**Ne işe yarar?**
+- Kullanıcının GPS koordinatlarından (latitude/longitude) il ve ilçe bilgisini tespit eder
+- Nominatim OpenStreetMap API'sini kullanarak reverse geocoding yapar
+- Bulunan il ve ilçe isimlerini veritabanındaki ID'lere çevirir
+- İl ve ilçe ID'lerini tuple olarak döndürür
 
 #### CalculateDistance - Satır 54-68
 **Haversine Formülü Kullanımı:**
@@ -520,9 +601,20 @@ Firma işlemleri.
 **Parametreler:**
 - `latitude`: Enlem
 - `longitude`: Boylam
+- `provinceId`: İl ID (opsiyonel)
+- `districtId`: İlçe ID (opsiyonel)
 - `limit`: Döndürülecek firma sayısı (1-50)
 
 **Ne işe yarar?**
+- Kullanıcının konumuna göre en yakın firmaları bulur
+- İki çalışma modu vardır:
+  1. **Otomatik İl/İlçe Tespiti**: Sadece latitude ve longitude parametreleri gönderilirse, sistem koordinatlardan il ve ilçe bilgisini otomatik olarak tespit eder
+  2. **Manuel İl/İlçe Seçimi**: provinceId ve districtId parametreleri gönderilirse, bu bilgiler kullanılır
+- Kapsamlı fallback mekanizması:
+  1. Önce kullanıcının bulunduğu ilçedeki firmalar listelenir
+  2. İlçede firma yoksa, en yakın ilçedeki firmalar listelenir
+  3. İlde firma yoksa, ildeki tüm firmalar listelenir
+  4. Hiç firma bulunamazsa, rastgele firmalar listelenir
 - Haversine formülü ile mesafe hesaplama
 - En yakın aktif firmaları döndürme
 - Mesafe bilgisi ile birlikte
@@ -749,17 +841,17 @@ private string HashPassword(string password) {
 ### Senaryo: Kullanıcı En Yakın Firmaları Arıyor
 
 ```
-1. Kullanıcı POST /api/companies/nearest?lat=41.0082&lon=29.0094
+1. Kullanıcı GET /api/companies/nearest?lat=41.0082&lon=29.0094&provinceId=34&districtId=3401
    ↓
 2. CompaniesController.GetNearestCompanies()
    ↓
 3. LocationService.GetNearestCompaniesAsync()
    ↓
-4. Veritabanından aktif firmaları çek
+4. Önce DistrictId/ProvinceId ile firmalar filtrelenir, gerekirse fallback yapılır
    ↓
-5. Her firma için CalculateDistance() ile mesafe hesapla
+5. Uygunsa CalculateDistance() ile mesafeler hesaplanır
    ↓
-6. Mesafeye göre sırala, limit kadar al
+6. Mesafeye veya filtre sonucuna göre limit kadar firma seçilir
    ↓
 7. CompanyDto listesi döndür
    ↓

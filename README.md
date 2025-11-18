@@ -63,12 +63,19 @@ dotnet run
 
 ### Firmalar
 - `GET /api/companies` - Tüm firmaları listele
-- `GET /api/companies/nearest?latitude={lat}&longitude={lon}&limit={limit}` - En yakın firmaları bul
+- `GET /api/companies/nearest?latitude={lat}&longitude={lon}&provinceId={provinceId}&districtId={districtId}&limit={limit}` - İl/ilçe filtreli en yakın firmaları bul
 
 ### Tickets
 - `POST /api/tickets` - Ticket oluştur (kullanıcılar için)
 - `GET /api/tickets` - Firmaların ticket'larını listele (JWT gerekli)
 - `PUT /api/tickets/{id}/status` - Ticket durumunu güncelle (JWT gerekli)
+
+### Tow Trucks
+- `POST /api/towtrucks` - Yeni çekici kaydı oluştur (Company rolü)
+- `GET /api/towtrucks/my?includeInactive={bool}` - Firmanın çekicilerini listele (pasifleri görmek için includeInactive=true)
+- `PUT /api/towtrucks/{id}` - Şoför, bölge veya aktiflik bilgisini güncelle
+- `PUT /api/towtrucks/{id}/deactivate` - Çekiciyi tek adımda pasif duruma getir
+- `DELETE /api/towtrucks/{id}` - Çekiciyi ve bölgelerini tamamen sil
 
 ## Swagger UI
 

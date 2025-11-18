@@ -30,8 +30,23 @@ Content-Type: application/json
 ### Tüm Firmaları Listele
 GET http://localhost:5000/api/companies
 
-### En Yakın Firmaları Bul
+### En Yakın Firmaları Bul (Manuel İl/İlçe Seçimi)
+GET http://localhost:5000/api/companies/nearest?latitude=41.0082&longitude=29.0094&provinceId=34&districtId=3401&limit=5
+
+### En Yakın Firmaları Bul (Otomatik İl/İlçe Tespiti)
 GET http://localhost:5000/api/companies/nearest?latitude=41.0082&longitude=29.0094&limit=5
+
+### Test: İlçede Firma Yoksa En Yakın İlçeye Fallback
+# Bu test için, belirli bir ilçede firma olmadığını bildiğiniz koordinatları kullanın
+GET http://localhost:5000/api/companies/nearest?latitude=41.0422&longitude=29.0089&limit=5
+
+### Test: İlde Firma Yoksa İl Geneline Fallback
+# Bu test için, belirli bir ilde firma olmadığını bildiğiniz koordinatları kullanın
+GET http://localhost:5000/api/companies/nearest?latitude=39.9208&longitude=32.8541&limit=5
+
+### Test: Hiç Firma Yoksa Rastgele Listeleme
+# Bu test için, sistemde hiç firmanın olmadığı bir bölgenin koordinatlarını kullanın
+GET http://localhost:5000/api/companies/nearest?latitude=36.8969&longitude=30.7133&limit=5
 
 ### Ticket Oluştur
 POST http://localhost:5000/api/tickets

@@ -36,37 +36,54 @@ namespace Nearest.Controllers
         }
 
         /// <summary>
-        /// Kullanıcının konumuna en yakın firmaları bulur
+        /// Kullanıcının konumuna göre en yakın firmaları bulur
         /// 
-        /// Bu endpoint, verilen koordinatlara en yakın aktif firmaları
-        /// Haversine formülü kullanarak sıralar ve mesafe bilgisi ile döndürür.
-        /// 
-        /// Hesaplama:
-        /// - Haversine formülü ile Great Circle Distance hesaplanır
-        /// - Sonuçlar km cinsinden mesafe bilgisi içerir
-        /// - Sadece aktif firmalar dahil edilir
-        /// - Mesafeye göre artan sırada sıralanır
+        /// Bu endpoint şu şekilde çalışır:
+        /// 1. Kullanıcının konum bilgisinden (latitude/longitude) il ve ilçe bilgisi tespit edilir.
+        /// 2. Öncelikle kullanıcının bulunduğu ilçedeki firmalar listelenir.
+        /// 3. Eğer ilçede firma yoksa, en yakın ilçedeki firmalar listelenir.
+        /// 4. Eğer ilde firma yoksa, ildeki tüm firmalar listelenir.
+        /// 5. Eğer hiç firma bulunamazsa, rastgele firmalar listelenir.
+        /// 6. Ardından gönderilen koordinatlar (latitude/longitude) üzerinden Haversine
+        ///    formülü ile mesafe hesaplar ve en yakın firmalardan limit kadarını döndürür.
         /// 
         /// Limit: 1-50 arası firma döndürülebilir.
         /// </summary>
         /// <param name="latitude">Kullanıcının enlem bilgisi (örn: 41.0082)</param>
         /// <param name="longitude">Kullanıcının boylam bilgisi (örn: 29.0094)</param>
+        /// <param name="provinceId">Kullanıcının bulunduğu ilin ID'si (opsiyonel)</param>
+        /// <param name="districtId">Kullanıcının bulunduğu ilçenin ID'si (opsiyonel)</param>
         /// <param name="limit">Döndürülecek maksimum firma sayısı (varsayılan: 10)</param>
-        /// <returns>En yakın firmalar listesi (mesafe bilgisi ile)</returns>
+        /// <returns>Filtrelenmiş en yakın firmalar listesi</returns>
         /// <response code="200">Firmalar başarıyla döndürüldü</response>
         /// <response code="400">Limit 1-50 arasında olmalıdır</response>
         [HttpGet("nearest")]
         public async Task<ActionResult<List<CompanyDto>>> GetNearestCompanies(
             [FromQuery] double latitude, 
             [FromQuery] double longitude,
-            [FromQuery] int limit = 10)
+            [FromQuery] int limit = 10,
+            [FromQuery] int? provinceId = null,
+            [FromQuery] int? districtId = null)
         {
             if (limit <= 0 || limit > 50)
             {
                 return BadRequest("Limit 1-50 arasında olmalıdır.");
             }
 
-            var companies = await _locationService.GetNearestCompaniesAsync(latitude, longitude, limit);
+            // If provinceId and districtId are not provided, try to determine them from coordinates
+            if (!provinceId.HasValue || !districtId.HasValue)
+            {
+                var locationInfo = await _locationService.GetProvinceAndDistrictFromCoordinatesAsync(latitude, longitude);
+                provinceId = locationInfo.provinceId;
+                districtId = locationInfo.districtId;
+            }
+
+            var companies = await _locationService.GetNearestCompaniesAsync(
+                latitude,
+                longitude,
+                limit,
+                provinceId,
+                districtId);
             return Ok(companies);
         }
 
