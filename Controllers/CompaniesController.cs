@@ -38,6 +38,10 @@ namespace Nearest.Controllers
         /// <summary>
         /// Kullanıcının konumuna göre en yakın firmaları bulur
         /// 
+        /// ⚠️ DEPRECATED: Bu endpoint artık kullanılmamalı. 
+        /// Bunun yerine /api/location/nearest endpoint'ini kullanın.
+        /// Bu endpoint çekicileri değil, firmaları döndürür.
+        /// 
         /// Bu endpoint şu şekilde çalışır:
         /// 1. Kullanıcının konum bilgisinden (latitude/longitude) il ve ilçe bilgisi tespit edilir.
         /// 2. Öncelikle kullanıcının bulunduğu ilçedeki firmalar listelenir.

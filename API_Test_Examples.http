@@ -27,6 +27,28 @@ Content-Type: application/json
   "password": "123456"
 }
 
+### ============== ÇEKİCİ ARAMA (PUBLIC - KULLANICILAR İÇİN) ==============
+
+### Tüm Çekicileri Listele (Konum bilgisi olmadan - Site açılışı)
+GET http://localhost:5000/api/location
+
+### En Yakın Çekicileri Bul (Manuel İl/İlçe Seçimi)
+GET http://localhost:5000/api/location/nearest?latitude=41.0082&longitude=29.0094&provinceId=34&districtId=3401&limit=5
+
+### En Yakın Çekicileri Bul (Otomatik İl/İlçe Tespiti)
+GET http://localhost:5000/api/location/nearest?latitude=41.0082&longitude=29.0094&limit=5
+
+### Test: İlçede Çekici Yoksa En Yakın İlçeye Fallback
+GET http://localhost:5000/api/location/nearest?latitude=41.0422&longitude=29.0089&limit=5
+
+### Test: İlde Çekici Yoksa İl Geneline Fallback
+GET http://localhost:5000/api/location/nearest?latitude=39.9208&longitude=32.8541&limit=5
+
+### Test: Hiç Çekici Yoksa Rastgele Listeleme
+GET http://localhost:5000/api/location/nearest?latitude=36.8969&longitude=30.7133&limit=5
+
+### ============== ESKİ FİRMA ENDPOİNTLERİ (DEPRECATED) ==============
+
 ### Tüm Firmaları Listele
 GET http://localhost:5000/api/companies
 

@@ -13,6 +13,12 @@ namespace Nearest.DTOs.TowTruck
 		public DateTime CreatedAt { get; set; }
 		public DateTime UpdatedAt { get; set; }
 		public List<TowTruckAreaDto> OperatingAreas { get; set; } = new();
+		
+		// Firma bilgileri (public listing için)
+		public int CompanyId { get; set; }
+		public string CompanyName { get; set; } = string.Empty;
+		public string CompanyPhone { get; set; } = string.Empty;
+		public double? Distance { get; set; } // Kullanıcıya olan mesafe (km)
 	}
 
 	public class TowTruckAreaDto
