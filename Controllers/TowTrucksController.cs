@@ -27,11 +27,7 @@ namespace Nearest.Controllers
 		}
 
 		/// <summary>
-		/// Yeni çekici kaydı oluşturur
-		/// 
-		/// Bu endpoint, firmanın yeni bir çekici aracını sisteme eklemesini sağlar.
 		/// Her çekici için benzersiz plaka numarası gereklidir.
-		/// 
 		/// Gerekli bilgiler:
 		/// - Plaka numarası (unique, sistem genelinde)
 		/// - Şoför adı
@@ -41,13 +37,6 @@ namespace Nearest.Controllers
 		/// Çalışma bölgeleri: İl ID ve ilçe ID çiftlerinden oluşur.
 		/// Bölge isimleri adres servisi ile otomatik çözümlenir.
 		/// </summary>
-		/// <param name="dto">Çekici kayıt bilgileri</param>
-		/// <param name="driverPhoto">Şoför fotoğrafı (opsiyonel)</param>
-		/// <returns>Oluşturulmuş çekici bilgileri</returns>
-		/// <response code="200">Çekici başarıyla oluşturuldu</response>
-		/// <response code="400">Gerekli alanlar eksik veya plaka zaten kayıtlı</response>
-		/// <response code="401">Yetkisiz erişim</response>
-		/// <response code="403">Sadece Company rolü yetkilidir</response>
 		[HttpPost]
 		[Authorize]
 		[RequestSizeLimit(20_000_000)]
@@ -81,10 +70,6 @@ namespace Nearest.Controllers
 		/// - Her bir çekicinin çalışma bölgeleri
 		/// - Oluşturulma tarihi
 		/// </summary>
-		/// <returns>Firmanın çekici listesi</returns>
-		/// <response code="200">Çekici listesi başarıyla döndürüldü</response>
-		/// <response code="401">Yetkisiz erişim</response>
-		/// <response code="403">Sadece Company rolü yetkilidir</response>
 		[HttpGet("my")]
 		[Authorize]
 		public async Task<ActionResult<List<TowTruckDto>>> GetMy([FromQuery] bool includeInactive = false)
@@ -100,28 +85,14 @@ namespace Nearest.Controllers
 		}
 		
 		/// <summary>
-		/// Çekici bilgilerini günceller
-		/// 
-		/// Bu endpoint, firmanın sahip olduğu bir çekicinin bilgilerini güncellemesini sağlar.
 		/// Sadece gönderilen alanlar güncellenir, boş bırakılan alanlar değiştirilmez.
-		/// 
 		/// Güncellenebilir bilgiler:
 		/// - Şoför adı
 		/// - Çalışma bölgeleri (JSON formatında il-ilçe listesi)
 		/// - Şoför fotoğrafı (opsiyonel, max 20MB)
 		/// - Aktiflik durumu (IsActive)
-		/// 
 		/// Plaka numarası değiştirilemez.
 		/// </summary>
-		/// <param name="id">Çekici ID</param>
-		/// <param name="dto">Güncellenecek bilgiler</param>
-		/// <param name="driverPhoto">Şoför fotoğrafı (opsiyonel)</param>
-		/// <returns>Güncellenmiş çekici bilgileri</returns>
-		/// <response code="200">Çekici başarıyla güncellendi</response>
-		/// <response code="400">Geçersiz veri</response>
-		/// <response code="401">Yetkisiz erişim</response>
-		/// <response code="403">Sadece Company rolü yetkilidir</response>
-		/// <response code="404">Çekici bulunamadı veya bu firmaya ait değil</response>
 		[HttpPut("{id}")]
 		[Authorize]
 		[RequestSizeLimit(20_000_000)]
@@ -150,12 +121,6 @@ namespace Nearest.Controllers
 		/// Bu endpoint, firmanın sahip olduğu bir çekiciyi pasif duruma getirmesini sağlar.
 		/// Pasif çekiciler, firma listesinde görünmez ve arama sonuçlarında çıkmaz.
 		/// </summary>
-		/// <param name="id">Çekici ID</param>
-		/// <returns>İşlem sonucu</returns>
-		/// <response code="200">Çekici başarıyla pasif duruma getirildi</response>
-		/// <response code="401">Yetkisiz erişim</response>
-		/// <response code="403">Sadece Company rolü yetkilidir</response>
-		/// <response code="404">Çekici bulunamadı veya bu firmaya ait değil</response>
 		[HttpPut("{id}/deactivate")]
 		[Authorize]
 		public async Task<ActionResult> Deactivate(int id)
@@ -174,19 +139,7 @@ namespace Nearest.Controllers
 			
 			return Ok(new { message = "Çekici pasif duruma getirildi." });
 		}
-		
-		/// <summary>
-		/// Çekiciyi tamamen siler
-		/// 
-		/// Bu endpoint, firmanın sahip olduğu bir çekiciyi ve ilişkili tüm verilerini
-		/// veritabanından tamamen siler. Bu işlem geri alınamaz.
-		/// </summary>
-		/// <param name="id">Çekici ID</param>
-		/// <returns>İşlem sonucu</returns>
-		/// <response code="200">Çekici başarıyla silindi</response>
-		/// <response code="401">Yetkisiz erişim</response>
-		/// <response code="403">Sadece Company rolü yetkilidir</response>
-		/// <response code="404">Çekici bulunamadı veya bu firmaya ait değil</response>
+
 		[HttpDelete("{id}")]
 		[Authorize]
 		public async Task<ActionResult> Delete(int id)

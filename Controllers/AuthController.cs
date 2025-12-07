@@ -10,18 +10,6 @@ using System.Text;
 
 namespace Nearest.Controllers
 {
-    /// <summary>
-    /// Kimlik Doğrulama Controller - Firma kayıt ve giriş işlemlerini yönetir
-    /// 
-    /// Bu controller, oto kurtarma firmalarının sisteme kaydolması ve giriş yapması için
-    /// gerekli endpoint'leri sağlar. Şifreler SHA256 ile hash'lenerek saklanır.
-    /// Başarılı işlemlerden sonra JWT token döndürülür (7 gün geçerli).
-    /// 
-    /// Güvenlik:
-    /// - Şifreler hash'lenerek veritabanında saklanır
-    /// - Email ve telefon numarası unique olmalıdır
-    /// - JWT token ile oturum yönetimi sağlanır
-    /// </summary>
     [ApiController]
     [Route("api/[controller]")]
     public class AuthController : ControllerBase
@@ -37,25 +25,12 @@ namespace Nearest.Controllers
             _jwtService = jwtService;
         }
 
-        /// <summary>
-        /// Yeni firma kaydı oluşturur
-        /// 
-        /// Firma kaydı sırasında:
-        /// - Email ve telefon numarasının benzersiz olduğu kontrol edilir
-        /// - Şifre SHA256 ile hash'lenir
-        /// - Adres bilgileri (Province/District) ID'lerden adres servisi ile çözümlenir
-        /// - Başarılı kayıt sonrası JWT token oluşturulur ve döndürülür
-        /// 
+
         /// Kayıt için gerekli bilgiler:
         /// - Firma ve temsilci kişisel bilgileri
         /// - Firma adresi ve konum bilgileri (latitude, longitude)
         /// - Hizmet verilen bölgeler
         /// - İletişim bilgileri (email, telefon)
-        /// </summary>
-        /// <param name="dto">Firma kayıt bilgileri</param>
-        /// <returns>JWT token ve firma bilgileri</returns>
-        /// <response code="200">Kayıt başarılı, token döndürüldü</response>
-        /// <response code="400">Email veya telefon numarası zaten kullanılıyor</response>
         [HttpPost("register")]
         public async Task<ActionResult<AuthResponseDto>> Register(CompanyRegistrationDto dto)
         {
@@ -109,15 +84,7 @@ namespace Nearest.Controllers
             });
         }
 
-        /// <summary>
-        /// Firma giriş yapar
-        /// 
-        /// Giriş işlemi sırasında:
-        /// - Email ve şifre doğrulanır
-        /// - Aktif olan (IsActive=true) firmalar giriş yapabilir
-        /// - Şifre kontrolü hash karşılaştırması ile yapılır
-        /// - Başarılı giriş sonrası JWT token döndürülür (7 gün geçerli)
-        /// 
+
         /// Token içinde şu bilgiler bulunur:
         /// - Firma ID (CompanyId)
         /// - Email ve firma adı
@@ -149,12 +116,7 @@ namespace Nearest.Controllers
             });
         }
 
-        /// <summary>
-        /// Şifreyi SHA256 algoritması ile hash'ler
-        /// 
-        /// Güvenlik için şifreler düz metin olarak saklanmaz.
-        /// Base64 encoding ile hash'lenmiş şifre saklanır.
-        /// </summary>
+
         private string HashPassword(string password)
         {
             using var sha256 = SHA256.Create();
@@ -162,12 +124,7 @@ namespace Nearest.Controllers
             return Convert.ToBase64String(hashedBytes);
         }
 
-        /// <summary>
-        /// Girilen şifreyi hash'lenmiş şifre ile karşılaştırır
-        /// 
-        /// Giriş sırasında kullanıcının girdiği şifre hash'lenerek
-        /// veritabanındaki hash değeri ile karşılaştırılır.
-        /// </summary>
+
         private bool VerifyPassword(string password, string hash)
         {
             var hashedPassword = HashPassword(password);

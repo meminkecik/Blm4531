@@ -15,11 +15,23 @@ namespace Nearest.Services
             _configuration = configuration;
         }
 
+        private byte[] GetKey()
+        {
+            var secretKey = _configuration["Jwt:Key"];
+
+            if (string.IsNullOrEmpty(secretKey))
+            {
+                throw new InvalidOperationException("Jwt:Key ayarı appsettings.json dosyasında bulunamadı!");
+            }
+
+            return Encoding.ASCII.GetBytes(secretKey);
+        }
+
         public string GenerateToken(Company company)
         {
             var tokenHandler = new JwtSecurityTokenHandler();
-            var key = Encoding.ASCII.GetBytes(_configuration["Jwt:Key"] ?? "your-super-secret-key-that-is-at-least-32-characters-long");
-            
+            var key = GetKey();
+
             var tokenDescriptor = new SecurityTokenDescriptor
             {
                 Subject = new ClaimsIdentity(new[]
@@ -41,8 +53,8 @@ namespace Nearest.Services
         public string GenerateToken(Admin admin)
         {
             var tokenHandler = new JwtSecurityTokenHandler();
-            var key = Encoding.ASCII.GetBytes(_configuration["Jwt:Key"] ?? "your-super-secret-key-that-is-at-least-32-characters-long");
-            
+            var key = GetKey();
+
             var tokenDescriptor = new SecurityTokenDescriptor
             {
                 Subject = new ClaimsIdentity(new[]
@@ -66,15 +78,15 @@ namespace Nearest.Services
             try
             {
                 var tokenHandler = new JwtSecurityTokenHandler();
-                var key = Encoding.ASCII.GetBytes(_configuration["Jwt:Key"] ?? "your-super-secret-key-that-is-at-least-32-characters-long");
-                
+                var key = GetKey();
+
                 tokenHandler.ValidateToken(token, new TokenValidationParameters
                 {
                     ValidateIssuerSigningKey = true,
                     IssuerSigningKey = new SymmetricSecurityKey(key),
-                    ValidateIssuer = false,
-                    ValidateAudience = false,
-                    ClockSkew = TimeSpan.Zero
+                    ValidateIssuer = false, // Eğer Issuer (yayıncı) kontrolü yapacaksan true yapmalısın
+                    ValidateAudience = false, // Eğer Audience (hedef kitle) kontrolü yapacaksan true yapmalısın
+                    ClockSkew = TimeSpan.Zero // Token süresi dolduğu an geçersiz olsun (normalde 5dk opsiyonel süre tanır)
                 }, out SecurityToken validatedToken);
 
                 return true;

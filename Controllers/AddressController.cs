@@ -4,22 +4,10 @@ using Nearest.DTOs.Address;
 using Nearest.Services;
 
 namespace Nearest.Controllers
-{
-    /// <summary>
-    /// Adres Controller - Türkiye il ve ilçe bilgilerini sağlar
-    /// 
+
     /// Bu controller, Türkiye'nin tüm illerini ve ilçelerini döndüren
     /// endpoint'ler sağlar. Adres bilgileri turkiyeapi.dev API'den
     /// senkronize edilmektedir.
-    /// 
-    /// Kullanım:
-    /// - Kayıt formlarında il/ilçe seçimi
-    /// - Arama ve filtreleme işlemleri
-    /// - Adres doğrulama
-    /// 
-    /// Güncelleme: Adres verilerinin güncellenmesi sadece Admin tarafından
-    /// AdminController üzerinden yapılır.
-    /// </summary>
     [ApiController]
     [Route("api/[controller]")]
     public class AddressController : ControllerBase
