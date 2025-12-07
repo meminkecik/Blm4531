@@ -61,7 +61,11 @@ dotnet run
 ### Profil
 - `GET /api/profile` - Profil bilgileri (Admin veya Company, JWT gerekli)
 
-### Firmalar
+### Çekici Arama (Public - Kullanıcılar için)
+- `GET /api/location` - Tüm aktif çekicileri listele (konum izni olmadan)
+- `GET /api/location/nearest?latitude={lat}&longitude={lon}&provinceId={provinceId}&districtId={districtId}&limit={limit}` - Konuma göre en yakın çekicileri bul
+
+### Firmalar (Eski endpoint'ler - Deprecated)
 - `GET /api/companies` - Tüm firmaları listele
 - `GET /api/companies/nearest?latitude={lat}&longitude={lon}&provinceId={provinceId}&districtId={districtId}&limit={limit}` - İl/ilçe filtreli en yakın firmaları bul
 
