@@ -4,7 +4,7 @@ using Nearest.DTOs.Address;
 using Nearest.Services;
 
 namespace Nearest.Controllers
-
+{
     /// Bu controller, Türkiye'nin tüm illerini ve ilçelerini döndüren
     /// endpoint'ler sağlar. Adres bilgileri turkiyeapi.dev API'den
     /// senkronize edilmektedir.
