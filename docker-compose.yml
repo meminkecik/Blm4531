@@ -3,30 +3,40 @@ services:
   postgres:
     image: postgres:15-alpine
     container_name: nearest-postgres
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: NearestDb
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-NearestDb}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - nearest-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # .NET API
   nearest-api:
     build: .
     container_name: nearest-api
+    restart: unless-stopped
     ports:
       - "5000:8080"
       - "5001:443"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__DefaultConnection=Host=postgres;Database=NearestDb;Username=postgres;Password=postgres
-      - Jwt__Key=your-super-secret-key-that-is-at-least-32-characters-long
+      - ConnectionStrings__DefaultConnection=Host=postgres;Database=${POSTGRES_DB:-NearestDb};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}
+      - Jwt__Key=${JWT_KEY:-your-super-secret-key-that-is-at-least-32-characters-long}
+      - Jwt__Issuer=${JWT_ISSUER:-Nearest}
+      - Jwt__Audience=${JWT_AUDIENCE:-Nearest}
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - nearest-network
 
