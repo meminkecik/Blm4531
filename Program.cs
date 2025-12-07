@@ -6,6 +6,10 @@ using Nearest.Data;
 using Nearest.Mappings;
 using Nearest.Services;
 using System.Text;
+using DotNetEnv;
+
+// .env dosyasını yükle (varsa)
+Env.Load();
 
 var builder = WebApplication.CreateBuilder(args);
 
