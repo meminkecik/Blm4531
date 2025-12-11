@@ -1,0 +1,12 @@
+# Production override - PostgreSQL portu KAPALI
+services:
+  postgres:
+    # PostgreSQL portunu internete AÇMAYIN!
+    # Sadece Docker network içinden erişim
+    ports: []
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}  # .env.production'dan alınır
+
+  nearest-api:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production

@@ -9,12 +9,12 @@ namespace Nearest.Mappings
 		public TowTruckMappingProfile()
 		{
 			CreateMap<TowTruck, TowTruckDto>()
-				.ForMember(dest => dest.CompanyName, opt => opt.MapFrom(src => src.Company.CompanyName))
-				.ForMember(dest => dest.CompanyPhone, opt => opt.MapFrom(src => src.Company.PhoneNumber))
+				.ForMember(dest => dest.CompanyName, opt => opt.MapFrom(src => src.Company != null ? src.Company.CompanyName : ""))
+				.ForMember(dest => dest.CompanyPhone, opt => opt.MapFrom(src => src.Company != null ? src.Company.PhoneNumber : ""))
 				.ForMember(dest => dest.Distance, opt => opt.Ignore()); // Manuel olarak hesaplanacak
 			CreateMap<TowTruckArea, TowTruckAreaDto>();
 		}
-	}
+		}
 }
 
 

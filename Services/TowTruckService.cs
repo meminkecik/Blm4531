@@ -271,45 +271,54 @@ namespace Nearest.Services
 				towTrucks = await baseQuery.ToListAsync();
 			}
 
-			var towTruckDtos = _mapper.Map<List<TowTruckDto>>(towTrucks);
+			// Eğer hala hiç çekici yoksa, boş liste döndür
+			if (!towTrucks.Any())
+			{
+				return new List<TowTruckDto>();
+			}
 
-			// Mesafe hesaplama
+			// Mesafe hesaplama - Company zaten Include ile yüklenmiş durumda
 			var hasGeoPoint = !double.IsNaN(latitude) && !double.IsNaN(longitude);
 			if (hasGeoPoint)
 			{
-				foreach (var towTruck in towTruckDtos)
+				foreach (var towTruck in towTrucks)
 				{
-					// Firmanın konumunu kullan
-					var company = await _context.Companies
-						.FirstOrDefaultAsync(c => c.Id == towTruck.CompanyId);
-						
-					if (company?.Latitude != null && company?.Longitude != null)
+					if (towTruck.Company?.Latitude != null && towTruck.Company?.Longitude != null)
 					{
-						towTruck.Distance = _locationService.CalculateDistance(
+						var distance = _locationService.CalculateDistance(
 							latitude,
 							longitude,
-							company.Latitude.Value,
-							company.Longitude.Value);
-					}
-					else
-					{
-						towTruck.Distance = null;
+							towTruck.Company.Latitude.Value,
+							towTruck.Company.Longitude.Value);
+							
+						// Distance'ı entity üzerinde tutmak için geçici bir property ekleyebiliriz
+						// Ama şimdilik DTO'ya map ettikten sonra set edeceğiz
 					}
 				}
 
-				towTruckDtos = towTruckDtos
-					.OrderBy(t => t.Distance ?? double.MaxValue)
-					.Take(limit)
-					.ToList();
+				// DTO'lara map et ve distance'ları ayarla
+				var towTruckDtos = towTrucks.Select(tt => {
+					var dto = _mapper.Map<TowTruckDto>(tt);
+					if (tt.Company?.Latitude != null && tt.Company?.Longitude != null)
+					{
+						dto.Distance = _locationService.CalculateDistance(
+							latitude,
+							longitude,
+							tt.Company.Latitude.Value,
+							tt.Company.Longitude.Value);
+					}
+					return dto;
+				}).OrderBy(t => t.Distance ?? double.MaxValue)
+				  .Take(limit)
+				  .ToList();
+
+				return towTruckDtos;
 			}
 			else
 			{
-				towTruckDtos = towTruckDtos
-					.Take(limit)
-					.ToList();
+				var towTruckDtos = _mapper.Map<List<TowTruckDto>>(towTrucks);
+				return towTruckDtos.Take(limit).ToList();
 			}
-
-			return towTruckDtos;
 		}
 	}
 }
