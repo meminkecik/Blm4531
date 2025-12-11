@@ -79,33 +79,33 @@ namespace Nearest.Services
 				});
 			}
 
-			_context.TowTrucks.Add(towTruck);
-			await _context.SaveChangesAsync();
+		_context.TowTrucks.Add(towTruck);
+		await _context.SaveChangesAsync();
 
-			await _context.Entry(towTruck).Collection(t => t.OperatingAreas).LoadAsync();
-			return _mapper.Map<TowTruckDto>(towTruck);
-		}
-
-		public async Task<List<TowTruckDto>> GetTowTrucksByCompanyAsync(int companyId, bool includeInactive = false)
+		// Company ve OperatingAreas'ı yükle
+		await _context.Entry(towTruck).Reference(t => t.Company).LoadAsync();
+		await _context.Entry(towTruck).Collection(t => t.OperatingAreas).LoadAsync();
+		
+		return _mapper.Map<TowTruckDto>(towTruck);
+	}		public async Task<List<TowTruckDto>> GetTowTrucksByCompanyAsync(int companyId, bool includeInactive = false)
 		{
 			var query = _context.TowTrucks
 				.Where(t => t.CompanyId == companyId);
 
-			if (!includeInactive)
-			{
-				query = query.Where(t => t.IsActive);
-			}
-
-			var list = await query
-				.Include(t => t.OperatingAreas)
-				.OrderByDescending(t => t.IsActive)
-				.ThenByDescending(t => t.UpdatedAt)
-				.ToListAsync();
-
-			return _mapper.Map<List<TowTruckDto>>(list);
+		if (!includeInactive)
+		{
+			query = query.Where(t => t.IsActive);
 		}
-		
-		public async Task<TowTruckDto> UpdateTowTruckAsync(int companyId, int towTruckId, UpdateTowTruckDto dto, IFormFile? driverPhoto)
+
+		var list = await query
+			.Include(t => t.Company)
+			.Include(t => t.OperatingAreas)
+			.OrderByDescending(t => t.IsActive)
+			.ThenByDescending(t => t.UpdatedAt)
+			.ToListAsync();
+
+		return _mapper.Map<List<TowTruckDto>>(list);
+	}		public async Task<TowTruckDto> UpdateTowTruckAsync(int companyId, int towTruckId, UpdateTowTruckDto dto, IFormFile? driverPhoto)
 		{
 			// Çekiciyi bul ve firma sahibi mi kontrol et
 			var towTruck = await _context.TowTrucks
