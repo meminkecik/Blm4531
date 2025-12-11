@@ -4,14 +4,6 @@ using Nearest.Services;
 
 namespace Nearest.Controllers
 {
-	/// <summary>
-	/// Public Tow Trucks Controller - Kullanıcıların çekici araması
-	/// 
-	/// Bu controller, kullanıcıların (misafir veya kayıtlı) konumlarına göre
-	/// en yakın çekicileri bulmalarını sağlar.
-	/// 
-	/// Yetkilendirme: Herkese açık (Authentication gerekmez)
-	/// </summary>
 	[ApiController]
 	[Route("api/[controller]")]
 	public class LocationController : ControllerBase
