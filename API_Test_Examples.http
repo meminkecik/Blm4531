@@ -38,6 +38,58 @@ GET http://localhost:5000/api/location/nearest?latitude=41.0082&longitude=29.009
 ### En Yakın Çekicileri Bul (Otomatik İl/İlçe Tespiti)
 GET http://localhost:5000/api/location/nearest?latitude=41.0082&longitude=29.0094&limit=5
 
+### ============== ÇEKİCİ YÖNETİMİ (FİRMA İÇİN) ==============
+
+### Çekici Ekle (Form-Data ile)
+POST http://localhost:5000/api/towtrucks
+Authorization: Bearer YOUR_COMPANY_JWT_TOKEN_HERE
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="LicensePlate"
+
+34ABC123
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="DriverName"
+
+Mehmet Kaya
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="AreasJson"
+
+[{"provinceId":34,"districtId":449},{"provinceId":34,"districtId":450}]
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### Çekicilerimi Listele
+GET http://localhost:5000/api/towtrucks/my
+Authorization: Bearer YOUR_COMPANY_JWT_TOKEN_HERE
+
+### Çekicilerimi Listele (Pasifler dahil)
+GET http://localhost:5000/api/towtrucks/my?includeInactive=true
+Authorization: Bearer YOUR_COMPANY_JWT_TOKEN_HERE
+
+### Çekici Güncelle
+PUT http://localhost:5000/api/towtrucks/1
+Authorization: Bearer YOUR_COMPANY_JWT_TOKEN_HERE
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="DriverName"
+
+Ali Demir (Güncel)
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="IsActive"
+
+true
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### Çekiciyi Pasifleştir
+PUT http://localhost:5000/api/towtrucks/1/deactivate
+Authorization: Bearer YOUR_COMPANY_JWT_TOKEN_HERE
+
+### Çekiciyi Sil
+DELETE http://localhost:5000/api/towtrucks/1
+Authorization: Bearer YOUR_COMPANY_JWT_TOKEN_HERE
+
 ### Test: İlçede Çekici Yoksa En Yakın İlçeye Fallback
 GET http://localhost:5000/api/location/nearest?latitude=41.0422&longitude=29.0089&limit=5
 
