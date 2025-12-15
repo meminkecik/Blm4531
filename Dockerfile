@@ -21,6 +21,9 @@ FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
 COPY --from=publish /app/publish .
 
+# Create wwwroot directory for static files and uploads
+RUN mkdir -p /app/wwwroot/uploads/drivers
+
 # Expose port
 EXPOSE 80
 EXPOSE 443
