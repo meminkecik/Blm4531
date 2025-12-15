@@ -8,5 +8,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}  # .env.production'dan alınır
 
   nearest-api:
+    volumes:
+      # Uploads klasörünü kalıcı hale getir
+      - ./uploads:/app/wwwroot/uploads
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
