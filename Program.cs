@@ -63,16 +63,17 @@ builder.Services.AddHttpClient();
 // CORS
 builder.Services.AddCors(options =>
 {
-    options.AddDefaultPolicy(policy =>
-    {
-        policy.WithOrigins(
-                "http://localhost:3000",      // Lokal testler için
-                "https://yoldancek.com",      // <-- BU SATIRI EKLE (Frontend Domainin)
-                "https://www.yoldancek.com"   // Garanti olsun diye www'li hali
-            )
-            .AllowAnyHeader()
-            .AllowAnyMethod();
-    });
+    options.AddPolicy("AllowYoldancek",
+        policy =>
+        {
+            policy.WithOrigins(
+                    "https://yoldancek.com",
+                    "https://www.yoldancek.com",
+                    "http://localhost:3000" // Test için
+                )
+                .AllowAnyHeader()
+                .AllowAnyMethod();
+        });
 });
 
 // Swagger
