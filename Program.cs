@@ -117,7 +117,7 @@ app.UseSwaggerUI();
 
 app.UseHttpsRedirection();
 
-app.UseCors("AllowAll");
+app.UseCors("AllowYoldancek");
 
 app.UseAuthentication();
 app.UseAuthorization();
