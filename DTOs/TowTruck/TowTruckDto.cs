@@ -19,6 +19,10 @@ namespace Nearest.DTOs.TowTruck
 		public string CompanyName { get; set; } = string.Empty;
 		public string CompanyPhone { get; set; } = string.Empty;
 		public double? Distance { get; set; } // Kullanıcıya olan mesafe (km)
+
+		// Puan ve yorum bilgileri
+		public double AverageRating { get; set; } // 5 üzerinden ortalama puan
+		public int ReviewCount { get; set; } // Toplam yorum sayısı
 	}
 
 	public class TowTruckAreaDto

@@ -64,6 +64,29 @@ namespace Nearest.Models
 
         public bool IsActive { get; set; } = true;
 
+        // KVKK Onay Bilgileri
+        /// <summary>
+        /// KVKK açık rıza onayı verildi mi?
+        /// </summary>
+        public bool KvkkConsent { get; set; } = false;
+
+        /// <summary>
+        /// KVKK onay tarihi
+        /// </summary>
+        public DateTime? KvkkConsentDate { get; set; }
+
+        /// <summary>
+        /// Onay verilen KVKK metin versiyonu
+        /// </summary>
+        [MaxLength(20)]
+        public string? KvkkConsentVersion { get; set; }
+
+        /// <summary>
+        /// Onay verilirken kullanılan IP adresi
+        /// </summary>
+        [MaxLength(45)]
+        public string? KvkkConsentIpAddress { get; set; }
+
         // Navigation properties
         public virtual ICollection<Ticket> Tickets { get; set; } = new List<Ticket>();
     }
