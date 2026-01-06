@@ -16,6 +16,8 @@ namespace Nearest.Data
         public DbSet<Admin> Admins { get; set; }
         public DbSet<TowTruck> TowTrucks { get; set; }
         public DbSet<TowTruckArea> TowTruckAreas { get; set; }
+        public DbSet<Review> Reviews { get; set; }
+        public DbSet<AbuseReport> AbuseReports { get; set; }
         
         // Address entities
         public DbSet<City> Cities { get; set; }
@@ -95,6 +97,40 @@ namespace Nearest.Data
                       .WithMany(d => d.Cities)
                       .HasForeignKey(cd => cd.DistrictId)
                       .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Review entity configuration
+            modelBuilder.Entity<Review>(entity =>
+            {
+                entity.HasOne(r => r.TowTruck)
+                      .WithMany()
+                      .HasForeignKey(r => r.TowTruckId)
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(r => r.TowTruckId);
+                entity.HasIndex(r => r.ReviewerPhone);
+            });
+
+            // AbuseReport entity configuration
+            modelBuilder.Entity<AbuseReport>(entity =>
+            {
+                entity.HasOne(a => a.TowTruck)
+                      .WithMany()
+                      .HasForeignKey(a => a.TowTruckId)
+                      .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(a => a.Company)
+                      .WithMany()
+                      .HasForeignKey(a => a.CompanyId)
+                      .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(a => a.ReviewedByAdmin)
+                      .WithMany()
+                      .HasForeignKey(a => a.ReviewedByAdminId)
+                      .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasIndex(a => a.Status);
+                entity.HasIndex(a => a.CreatedAt);
             });
         }
     }

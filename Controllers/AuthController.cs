@@ -31,9 +31,16 @@ namespace Nearest.Controllers
         /// - Firma adresi ve konum bilgileri (latitude, longitude)
         /// - Hizmet verilen bölgeler
         /// - İletişim bilgileri (email, telefon)
+        /// - KVKK açık rıza onayı (zorunlu)
         [HttpPost("register")]
         public async Task<ActionResult<AuthResponseDto>> Register(CompanyRegistrationDto dto)
         {
+            // KVKK onayı kontrolü
+            if (!dto.KvkkConsent)
+            {
+                return BadRequest("KVKK açık rıza onayı zorunludur.");
+            }
+
             // Email zaten var mı kontrol et
             if (await _context.Companies.AnyAsync(c => c.Email == dto.Email))
             {
@@ -70,6 +77,12 @@ namespace Nearest.Controllers
 
             company.PasswordHash = HashPassword(dto.Password);
 
+            // KVKK onay bilgilerini kaydet
+            company.KvkkConsent = true;
+            company.KvkkConsentDate = DateTime.UtcNow;
+            company.KvkkConsentVersion = dto.KvkkConsentVersion ?? "1.0";
+            company.KvkkConsentIpAddress = GetClientIpAddress();
+
             _context.Companies.Add(company);
             await _context.SaveChangesAsync();
 
@@ -82,6 +95,29 @@ namespace Nearest.Controllers
                 ExpiresAt = DateTime.UtcNow.AddDays(7),
                 Company = companyDto
             });
+        }
+
+        /// <summary>
+        /// İstemci IP adresini alır
+        /// </summary>
+        private string GetClientIpAddress()
+        {
+            // X-Forwarded-For header'ı varsa (proxy/load balancer arkasında)
+            var forwardedFor = HttpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+            if (!string.IsNullOrEmpty(forwardedFor))
+            {
+                return forwardedFor.Split(',').First().Trim();
+            }
+
+            // X-Real-IP header'ı varsa
+            var realIp = HttpContext.Request.Headers["X-Real-IP"].FirstOrDefault();
+            if (!string.IsNullOrEmpty(realIp))
+            {
+                return realIp;
+            }
+
+            // Doğrudan bağlantı IP'si
+            return HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
         }
 
 

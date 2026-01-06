@@ -25,6 +25,47 @@ namespace Nearest.Services
 			_locationService = locationService;
 		}
 
+		/// <summary>
+		/// Çekici için puan ve yorum sayısı bilgisini getirir
+		/// </summary>
+		private async Task<(double averageRating, int reviewCount)> GetRatingStatsAsync(int towTruckId)
+		{
+			var reviews = await _context.Reviews
+				.Where(r => r.TowTruckId == towTruckId && r.IsVisible && r.IsApproved)
+				.ToListAsync();
+
+			if (!reviews.Any())
+			{
+				return (0, 0);
+			}
+
+			var averageRating = Math.Round(reviews.Average(r => r.Rating), 1);
+			return (averageRating, reviews.Count);
+		}
+
+		/// <summary>
+		/// TowTruckDto'ya puan bilgilerini ekler
+		/// </summary>
+		private async Task<TowTruckDto> AddRatingInfoAsync(TowTruckDto dto)
+		{
+			var (averageRating, reviewCount) = await GetRatingStatsAsync(dto.Id);
+			dto.AverageRating = averageRating;
+			dto.ReviewCount = reviewCount;
+			return dto;
+		}
+
+		/// <summary>
+		/// TowTruckDto listesine puan bilgilerini ekler
+		/// </summary>
+		private async Task<List<TowTruckDto>> AddRatingInfoAsync(List<TowTruckDto> dtos)
+		{
+			foreach (var dto in dtos)
+			{
+				await AddRatingInfoAsync(dto);
+			}
+			return dtos;
+		}
+
 		public async Task<TowTruckDto> CreateTowTruckAsync(int companyId, TowTruckCreateDto dto, IFormFile? driverPhoto)
 		{
 			var companyExists = await _context.Companies.AnyAsync(c => c.Id == companyId && c.IsActive);
@@ -86,7 +127,8 @@ namespace Nearest.Services
 		await _context.Entry(towTruck).Reference(t => t.Company).LoadAsync();
 		await _context.Entry(towTruck).Collection(t => t.OperatingAreas).LoadAsync();
 		
-		return _mapper.Map<TowTruckDto>(towTruck);
+		var result = _mapper.Map<TowTruckDto>(towTruck);
+		return await AddRatingInfoAsync(result);
 	}		public async Task<List<TowTruckDto>> GetTowTrucksByCompanyAsync(int companyId, bool includeInactive = false)
 		{
 			var query = _context.TowTrucks
@@ -104,7 +146,8 @@ namespace Nearest.Services
 			.ThenByDescending(t => t.UpdatedAt)
 			.ToListAsync();
 
-		return _mapper.Map<List<TowTruckDto>>(list);
+		var result = _mapper.Map<List<TowTruckDto>>(list);
+		return await AddRatingInfoAsync(result);
 	}		public async Task<TowTruckDto> UpdateTowTruckAsync(int companyId, int towTruckId, UpdateTowTruckDto dto, IFormFile? driverPhoto)
 		{
 			// Çekiciyi bul ve firma sahibi mi kontrol et
@@ -169,7 +212,8 @@ namespace Nearest.Services
 			towTruck.UpdatedAt = DateTime.UtcNow;
 			
 			await _context.SaveChangesAsync();
-			return _mapper.Map<TowTruckDto>(towTruck);
+			var result = _mapper.Map<TowTruckDto>(towTruck);
+			return await AddRatingInfoAsync(result);
 		}
 		
 		public async Task<bool> DeactivateTowTruckAsync(int companyId, int towTruckId)
@@ -224,7 +268,8 @@ namespace Nearest.Services
 				.OrderByDescending(t => t.UpdatedAt)
 				.ToListAsync();
 				
-			return _mapper.Map<List<TowTruckDto>>(towTrucks);
+			var result = _mapper.Map<List<TowTruckDto>>(towTrucks);
+			return await AddRatingInfoAsync(result);
 		}
 		
 		public async Task<List<TowTruckDto>> GetNearestTowTrucksAsync(
@@ -312,12 +357,13 @@ namespace Nearest.Services
 				  .Take(limit)
 				  .ToList();
 
-				return towTruckDtos;
+				return await AddRatingInfoAsync(towTruckDtos);
 			}
 			else
 			{
 				var towTruckDtos = _mapper.Map<List<TowTruckDto>>(towTrucks);
-				return towTruckDtos.Take(limit).ToList();
+				var result = towTruckDtos.Take(limit).ToList();
+				return await AddRatingInfoAsync(result);
 			}
 		}
 	}

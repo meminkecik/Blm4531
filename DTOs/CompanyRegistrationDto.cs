@@ -55,5 +55,17 @@ namespace Nearest.DTOs
         [Required]
         [MinLength(6)]
         public string Password { get; set; } = string.Empty;
+
+        /// <summary>
+        /// KVKK açık rıza onayı (zorunlu)
+        /// </summary>
+        [Required(ErrorMessage = "KVKK açık rıza onayı zorunludur")]
+        public bool KvkkConsent { get; set; }
+
+        /// <summary>
+        /// Onay verilen KVKK metin versiyonu (opsiyonel - frontend'den gönderilebilir)
+        /// </summary>
+        [MaxLength(20)]
+        public string? KvkkConsentVersion { get; set; }
     }
 }
