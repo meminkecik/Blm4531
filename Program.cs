@@ -60,6 +60,7 @@ builder.Services.AddScoped<Nearest.Repositories.ICityRepository, Nearest.Reposit
 builder.Services.AddScoped<Nearest.Repositories.IDistrictRepository, Nearest.Repositories.DistrictRepository>();
 builder.Services.AddScoped<Nearest.Repositories.ICityDistrictRepository, Nearest.Repositories.CityDistrictRepository>();
 builder.Services.AddScoped<Nearest.Repositories.IAdminRepository, Nearest.Repositories.AdminRepository>();
+builder.Services.AddScoped<Nearest.Repositories.ICompanyRepository, Nearest.Repositories.CompanyRepository>();
 
 // HttpClient for external API calls
 builder.Services.AddHttpClient();

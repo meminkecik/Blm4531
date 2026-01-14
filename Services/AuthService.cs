@@ -1,31 +1,29 @@
 using AutoMapper;
-using Microsoft.EntityFrameworkCore;
-using Nearest.Data;
 using Nearest.DTOs;
 using Nearest.Models;
-using System.Security.Cryptography;
-using System.Text;
+using Nearest.Repositories;
 
 namespace Nearest.Services
 {
     /// <summary>
     /// Kimlik doğrulama servisi implementasyonu
     /// SOLID: Single Responsibility - Sadece authentication işlemleri
+    /// Repository Pattern: Data access için ICompanyRepository kullanır
     /// </summary>
     public class AuthService : IAuthService
     {
-        private readonly ApplicationDbContext _context;
+        private readonly ICompanyRepository _companyRepository;
         private readonly IMapper _mapper;
         private readonly IJwtService _jwtService;
         private readonly IAddressService _addressService;
 
         public AuthService(
-            ApplicationDbContext context,
+            ICompanyRepository companyRepository,
             IMapper mapper,
             IJwtService jwtService,
             IAddressService addressService)
         {
-            _context = context;
+            _companyRepository = companyRepository;
             _mapper = mapper;
             _jwtService = jwtService;
             _addressService = addressService;
@@ -42,14 +40,14 @@ namespace Nearest.Services
                 return AuthServiceResult.Fail("KVKK açık rıza onayı zorunludur.");
             }
 
-            // 2. Email benzersizlik kontrolü
-            if (await _context.Companies.AnyAsync(c => c.Email == dto.Email))
+            // 2. Email benzersizlik kontrolü (Repository)
+            if (await _companyRepository.EmailExistsAsync(dto.Email))
             {
                 return AuthServiceResult.Fail("Bu email adresi zaten kullanılıyor.");
             }
 
-            // 3. Telefon benzersizlik kontrolü
-            if (await _context.Companies.AnyAsync(c => c.PhoneNumber == dto.PhoneNumber))
+            // 3. Telefon benzersizlik kontrolü (Repository)
+            if (await _companyRepository.PhoneExistsAsync(dto.PhoneNumber))
             {
                 return AuthServiceResult.Fail("Bu telefon numarası zaten kullanılıyor.");
             }
@@ -92,9 +90,8 @@ namespace Nearest.Services
             company.UpdatedAt = DateTime.UtcNow;
             company.IsActive = true;
 
-            // 9. Veritabanına kaydet
-            _context.Companies.Add(company);
-            await _context.SaveChangesAsync();
+            // 9. Veritabanına kaydet (Repository)
+            await _companyRepository.AddAsync(company);
 
             // 10. Response oluştur
             var companyDto = _mapper.Map<CompanyDto>(company);
@@ -113,9 +110,8 @@ namespace Nearest.Services
         /// </summary>
         public async Task<AuthServiceResult> LoginAsync(CompanyLoginDto dto)
         {
-            // 1. Email ile firmayı bul
-            var company = await _context.Companies
-                .FirstOrDefaultAsync(c => c.Email == dto.Email && c.IsActive);
+            // 1. Email ile aktif firmayı bul (Repository)
+            var company = await _companyRepository.GetActiveByEmailAsync(dto.Email);
 
             // 2. Firma bulunamadı veya şifre yanlış
             if (company == null || !VerifyPassword(dto.Password, company.PasswordHash))
@@ -140,8 +136,8 @@ namespace Nearest.Services
         /// </summary>
         public string HashPassword(string password)
         {
-            using var sha256 = SHA256.Create();
-            var hashedBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
+            using var sha256 = System.Security.Cryptography.SHA256.Create();
+            var hashedBytes = sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(password));
             return Convert.ToBase64String(hashedBytes);
         }
 

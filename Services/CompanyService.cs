@@ -1,23 +1,22 @@
 using AutoMapper;
-using Microsoft.EntityFrameworkCore;
-using Nearest.Data;
 using Nearest.DTOs;
-using Nearest.Models;
+using Nearest.Repositories;
 
 namespace Nearest.Services
 {
     /// <summary>
     /// Firma (Company) yönetim servisi implementasyonu
     /// SOLID: Single Responsibility - Sadece firma işlemleri
+    /// Repository Pattern: Data access için ICompanyRepository kullanır
     /// </summary>
     public class CompanyService : ICompanyService
     {
-        private readonly ApplicationDbContext _context;
+        private readonly ICompanyRepository _companyRepository;
         private readonly IMapper _mapper;
 
-        public CompanyService(ApplicationDbContext context, IMapper mapper)
+        public CompanyService(ICompanyRepository companyRepository, IMapper mapper)
         {
-            _context = context;
+            _companyRepository = companyRepository;
             _mapper = mapper;
         }
 
@@ -26,10 +25,7 @@ namespace Nearest.Services
         /// </summary>
         public async Task<List<CompanyDto>> GetAllCompaniesAsync()
         {
-            var companies = await _context.Companies
-                .OrderByDescending(c => c.CreatedAt)
-                .ToListAsync();
-
+            var companies = await _companyRepository.GetAllAsync();
             return _mapper.Map<List<CompanyDto>>(companies);
         }
 
@@ -38,7 +34,7 @@ namespace Nearest.Services
         /// </summary>
         public async Task<CompanyDto?> GetCompanyByIdAsync(int id)
         {
-            var company = await _context.Companies.FindAsync(id);
+            var company = await _companyRepository.GetByIdAsync(id);
             return company != null ? _mapper.Map<CompanyDto>(company) : null;
         }
 
@@ -47,8 +43,7 @@ namespace Nearest.Services
         /// </summary>
         public async Task<CompanyDto?> GetCompanyByEmailAsync(string email)
         {
-            var company = await _context.Companies
-                .FirstOrDefaultAsync(c => c.Email == email);
+            var company = await _companyRepository.GetByEmailAsync(email);
             return company != null ? _mapper.Map<CompanyDto>(company) : null;
         }
 
@@ -57,7 +52,7 @@ namespace Nearest.Services
         /// </summary>
         public async Task<ServiceResult<CompanyDto>> UpdateCompanyAsync(int id, AdminCompanyUpdateDto dto)
         {
-            var company = await _context.Companies.FindAsync(id);
+            var company = await _companyRepository.GetByIdAsync(id);
             if (company == null)
             {
                 return ServiceResult<CompanyDto>.NotFound("Şirket bulunamadı.");
@@ -103,9 +98,7 @@ namespace Nearest.Services
             if (dto.IsActive.HasValue)
                 company.IsActive = dto.IsActive.Value;
 
-            company.UpdatedAt = DateTime.UtcNow;
-
-            await _context.SaveChangesAsync();
+            await _companyRepository.UpdateAsync(company);
 
             return ServiceResult<CompanyDto>.Ok(_mapper.Map<CompanyDto>(company));
         }
@@ -115,23 +108,12 @@ namespace Nearest.Services
         /// </summary>
         public async Task<ServiceResult<bool>> DeleteCompanyAsync(int id)
         {
-            var company = await _context.Companies
-                .Include(c => c.TowTrucks)
-                .FirstOrDefaultAsync(c => c.Id == id);
-
-            if (company == null)
+            var deleted = await _companyRepository.DeleteAsync(id);
+            
+            if (!deleted)
             {
                 return ServiceResult<bool>.NotFound("Şirket bulunamadı.");
             }
-
-            // İlişkili çekicileri de sil
-            if (company.TowTrucks?.Any() == true)
-            {
-                _context.TowTrucks.RemoveRange(company.TowTrucks);
-            }
-
-            _context.Companies.Remove(company);
-            await _context.SaveChangesAsync();
 
             return ServiceResult<bool>.Ok(true);
         }
@@ -141,7 +123,7 @@ namespace Nearest.Services
         /// </summary>
         public async Task<bool> IsEmailExistsAsync(string email)
         {
-            return await _context.Companies.AnyAsync(c => c.Email == email);
+            return await _companyRepository.EmailExistsAsync(email);
         }
 
         /// <summary>
@@ -149,7 +131,7 @@ namespace Nearest.Services
         /// </summary>
         public async Task<bool> IsPhoneExistsAsync(string phoneNumber)
         {
-            return await _context.Companies.AnyAsync(c => c.PhoneNumber == phoneNumber);
+            return await _companyRepository.PhoneExistsAsync(phoneNumber);
         }
     }
 }
