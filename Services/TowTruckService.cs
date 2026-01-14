@@ -366,6 +366,96 @@ namespace Nearest.Services
 				return await AddRatingInfoAsync(result);
 			}
 		}
+
+		// ========== ADMIN METODLARI ==========
+
+		/// <summary>
+		/// Admin için tüm çekicileri listeler (aktif/pasif hepsi)
+		/// </summary>
+		public async Task<List<TowTruckDto>> GetAllTowTrucksForAdminAsync()
+		{
+			var towTrucks = await _context.TowTrucks
+				.Include(t => t.Company)
+				.Include(t => t.OperatingAreas)
+				.OrderByDescending(t => t.CreatedAt)
+				.ToListAsync();
+
+			var result = _mapper.Map<List<TowTruckDto>>(towTrucks);
+			return await AddRatingInfoAsync(result);
+		}
+
+		/// <summary>
+		/// Admin tarafından çekici güncelleme
+		/// </summary>
+		public async Task<ServiceResult<TowTruckDto>> UpdateTowTruckByAdminAsync(int towTruckId, AdminTowTruckUpdateDto dto)
+		{
+			var towTruck = await _context.TowTrucks
+				.Include(t => t.Company)
+				.Include(t => t.OperatingAreas)
+				.FirstOrDefaultAsync(t => t.Id == towTruckId);
+
+			if (towTruck == null)
+			{
+				return ServiceResult<TowTruckDto>.NotFound("Çekici bulunamadı.");
+			}
+
+			// Sadece gönderilen alanları güncelle
+			if (!string.IsNullOrEmpty(dto.DriverName))
+				towTruck.DriverName = dto.DriverName.Trim();
+
+			if (!string.IsNullOrEmpty(dto.LicensePlate))
+				towTruck.LicensePlate = dto.LicensePlate.Trim().ToUpperInvariant();
+
+			if (dto.IsActive.HasValue)
+				towTruck.IsActive = dto.IsActive.Value;
+
+			if (dto.CompanyId.HasValue)
+			{
+				// Yeni firma var mı kontrol et
+				var companyExists = await _context.Companies.AnyAsync(c => c.Id == dto.CompanyId.Value);
+				if (!companyExists)
+				{
+					return ServiceResult<TowTruckDto>.Fail("Belirtilen firma bulunamadı.");
+				}
+				towTruck.CompanyId = dto.CompanyId.Value;
+			}
+
+			towTruck.UpdatedAt = DateTime.UtcNow;
+
+			await _context.SaveChangesAsync();
+
+			// Company bilgisini yeniden yükle
+			await _context.Entry(towTruck).Reference(t => t.Company).LoadAsync();
+
+			var result = _mapper.Map<TowTruckDto>(towTruck);
+			return ServiceResult<TowTruckDto>.Ok(await AddRatingInfoAsync(result));
+		}
+
+		/// <summary>
+		/// Admin tarafından çekici silme
+		/// </summary>
+		public async Task<ServiceResult<bool>> DeleteTowTruckByAdminAsync(int towTruckId)
+		{
+			var towTruck = await _context.TowTrucks
+				.Include(t => t.OperatingAreas)
+				.FirstOrDefaultAsync(t => t.Id == towTruckId);
+
+			if (towTruck == null)
+			{
+				return ServiceResult<bool>.NotFound("Çekici bulunamadı.");
+			}
+
+			// İlişkili alanları sil
+			if (towTruck.OperatingAreas?.Any() == true)
+			{
+				_context.TowTruckAreas.RemoveRange(towTruck.OperatingAreas);
+			}
+
+			_context.TowTrucks.Remove(towTruck);
+			await _context.SaveChangesAsync();
+
+			return ServiceResult<bool>.Ok(true);
+		}
 	}
 }
 

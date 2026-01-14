@@ -48,6 +48,8 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<ITowTruckService, TowTruckService>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<IAbuseReportService, AbuseReportService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<ICompanyService, CompanyService>();
 
 // Address Services
 builder.Services.AddScoped<IAddressService, AddressService>();
