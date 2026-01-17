@@ -35,31 +35,32 @@ namespace Nearest.Controllers
 		}
 
 		/// <summary>
-		/// Kullanıcının konumuna göre en yakın çekicileri bulur
+		/// Kullanıcının konumuna göre en yakın çekicileri bulur (Kademeli Arama)
 		/// 
 		/// Bu endpoint şu şekilde çalışır:
-		/// 1. Kullanıcının konum bilgisinden (latitude/longitude) il ve ilçe bilgisi tespit edilir (opsiyonel)
-		/// 2. Öncelikle kullanıcının bulunduğu ilçede çalışan çekiciler listelenir
-		/// 3. Eğer ilçede çekici yoksa, aynı ildeki çekiciler listelenir
-		/// 4. Eğer ilde çekici yoksa, tüm aktif çekiciler listelenir
-		/// 5. Ardından gönderilen koordinatlar (latitude/longitude) üzerinden firma konumlarına göre
-		///    mesafe hesaplanır ve en yakın çekiciler döndürülür
+		/// 1. Öncelikle kullanıcının bulunduğu ilçede hizmet veren çekiciler listelenir
+		/// 2. Ardından aynı ildeki diğer ilçelerdeki çekiciler mesafeye göre eklenir
+		/// 3. Daha sonra komşu illerdeki çekiciler mesafeye göre eklenir
+		/// 4. Son olarak tüm Türkiye'deki çekiciler mesafeye göre sıralanır
 		/// 
-		/// Limit: 1-50 arası çekici döndürülebilir.
+		/// Her adımda limit dolana kadar devam edilir.
+		/// Konum izni verilmemişse rastgele 20 çekici döndürülür.
+		/// 
+		/// Limit: 1-50 arası çekici döndürülebilir (varsayılan: 20).
 		/// </summary>
 		/// <param name="latitude">Kullanıcının enlem bilgisi (örn: 41.0082)</param>
 		/// <param name="longitude">Kullanıcının boylam bilgisi (örn: 29.0094)</param>
 		/// <param name="provinceId">Kullanıcının bulunduğu ilin ID'si (opsiyonel)</param>
 		/// <param name="districtId">Kullanıcının bulunduğu ilçenin ID'si (opsiyonel)</param>
-		/// <param name="limit">Döndürülecek maksimum çekici sayısı (varsayılan: 10)</param>
-		/// <returns>Filtrelenmiş en yakın çekiciler listesi</returns>
+		/// <param name="limit">Döndürülecek maksimum çekici sayısı (varsayılan: 20)</param>
+		/// <returns>Filtrelenmiş en yakın çekiciler listesi (mesafeye göre sıralı)</returns>
 		/// <response code="200">Çekiciler başarıyla döndürüldü</response>
 		/// <response code="400">Limit 1-50 arasında olmalıdır</response>
 		[HttpGet("nearest")]
 		public async Task<ActionResult<List<TowTruckDto>>> GetNearestTowTrucks(
-			[FromQuery] double latitude,
-			[FromQuery] double longitude,
-			[FromQuery] int limit = 10,
+			[FromQuery] double latitude = 0,
+			[FromQuery] double longitude = 0,
+			[FromQuery] int limit = 20,
 			[FromQuery] int? provinceId = null,
 			[FromQuery] int? districtId = null)
 		{
@@ -68,12 +69,15 @@ namespace Nearest.Controllers
 				return BadRequest("Limit 1-50 arasında olmalıdır.");
 			}
 
-			// İl ve ilçe bilgisi verilmemişse, koordinatlardan tespit et
-			if (!provinceId.HasValue || !districtId.HasValue)
+			// Geçerli koordinatlar varsa ve il/ilçe bilgisi yoksa, koordinatlardan tespit et
+			var hasValidCoordinates = latitude != 0 && longitude != 0 
+			                          && !double.IsNaN(latitude) && !double.IsNaN(longitude);
+			
+			if (hasValidCoordinates && (!provinceId.HasValue || !districtId.HasValue))
 			{
 				var locationInfo = await _locationService.GetProvinceAndDistrictFromCoordinatesAsync(latitude, longitude);
-				provinceId = locationInfo.provinceId;
-				districtId = locationInfo.districtId;
+				provinceId ??= locationInfo.provinceId;
+				districtId ??= locationInfo.districtId;
 			}
 
 			var towTrucks = await _towTruckService.GetNearestTowTrucksAsync(

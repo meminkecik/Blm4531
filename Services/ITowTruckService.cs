@@ -20,6 +20,11 @@ namespace Nearest.Services
 			int limit = 10,
 			int? provinceId = null,
 			int? districtId = null);
+
+		// Admin yönetimi için
+		Task<List<TowTruckDto>> GetAllTowTrucksForAdminAsync();
+		Task<ServiceResult<TowTruckDto>> UpdateTowTruckByAdminAsync(int towTruckId, AdminTowTruckUpdateDto dto);
+		Task<ServiceResult<bool>> DeleteTowTruckByAdminAsync(int towTruckId);
 	}
 }
 

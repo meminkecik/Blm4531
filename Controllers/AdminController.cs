@@ -4,18 +4,21 @@ using Nearest.DTOs;
 using Nearest.DTOs.TowTruck;
 using Nearest.Models;
 using Nearest.Services;
-using Nearest.Data;
-using AutoMapper;
-using Microsoft.EntityFrameworkCore;
 
 namespace Nearest.Controllers
 {
+    /// <summary>
+    /// Admin Controller
+    /// 
     /// Admin yetkileri:
     /// - Türkiye adres verilerini güncellemek (turkiyeapi.dev API'den)
     /// - Tüm ticket'ları görüntülemek
+    /// - Firma ve çekici yönetimi
     /// - Sistemi yönetmek
     /// 
+    /// SOLID: Controller sadece HTTP isteklerini karşılar, iş mantığı Service katmanında.
     /// Güvenlik: Tüm endpoint'ler [Authorize] attribute'u ile korunur.
+    /// </summary>
     [ApiController]
     [Route("api/[controller]")]
     public class AdminController : ControllerBase
@@ -23,37 +26,43 @@ namespace Nearest.Controllers
         private readonly IAdminService _adminService;
         private readonly IAddressService _addressService;
         private readonly ITicketService _ticketService;
-        private readonly ApplicationDbContext _context;
-        private readonly IMapper _mapper;
+        private readonly ICompanyService _companyService;
         private readonly ITowTruckService _towTruckService;
 
         public AdminController(
             IAdminService adminService,
             IAddressService addressService,
             ITicketService ticketService,
-            ApplicationDbContext context,
-            IMapper mapper,
+            ICompanyService companyService,
             ITowTruckService towTruckService)
         {
             _adminService = adminService;
             _addressService = addressService;
             _ticketService = ticketService;
-            _context = context;
-            _mapper = mapper;
+            _companyService = companyService;
             _towTruckService = towTruckService;
         }
 
+        /// <summary>
+        /// Admin girişi yapar
+        /// 
         /// Token içinde şu bilgiler bulunur:
         /// - Admin ID (AdminId)
         /// - Email ve isim bilgileri
         /// - Rol bilgisi (Role: "Admin")
+        /// </summary>
         [HttpPost("login")]
         public async Task<ActionResult<AdminAuthResponseDto>> Login([FromBody] AdminLoginDto loginDto)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
             var result = await _adminService.LoginAsync(loginDto);
             if (result == null)
             {
-                return Unauthorized("Email veya şifre hatalı.");
+                return Unauthorized(new { message = "Email veya şifre hatalı." });
             }
 
             return Ok(result);
@@ -70,8 +79,9 @@ namespace Nearest.Controllers
         {
             var role = User.FindFirst("Role")?.Value;
             if (role != "Admin") return Forbid();
-            var companies = await _context.Companies.ToListAsync();
-            return Ok(_mapper.Map<List<CompanyDto>>(companies));
+
+            var companies = await _companyService.GetAllCompaniesAsync();
+            return Ok(companies);
         }
 
         /// <summary>
@@ -83,25 +93,15 @@ namespace Nearest.Controllers
         {
             var role = User.FindFirst("Role")?.Value;
             if (role != "Admin") return Forbid();
-            var company = await _context.Companies.FirstOrDefaultAsync(c => c.Id == id);
-            if (company == null) return NotFound();
 
-            if (!string.IsNullOrEmpty(dto.FirstName)) company.FirstName = dto.FirstName;
-            if (!string.IsNullOrEmpty(dto.LastName)) company.LastName = dto.LastName;
-            if (!string.IsNullOrEmpty(dto.CompanyName)) company.CompanyName = dto.CompanyName;
-            if (!string.IsNullOrEmpty(dto.PhoneNumber)) company.PhoneNumber = dto.PhoneNumber;
-            if (dto.ProvinceId.HasValue) company.ProvinceId = dto.ProvinceId.Value;
-            if (dto.DistrictId.HasValue) company.DistrictId = dto.DistrictId.Value;
-            if (!string.IsNullOrEmpty(dto.FullAddress)) company.FullAddress = dto.FullAddress;
-            if (dto.Latitude.HasValue) company.Latitude = dto.Latitude;
-            if (dto.Longitude.HasValue) company.Longitude = dto.Longitude;
-            if (!string.IsNullOrEmpty(dto.ServiceCity)) company.ServiceCity = dto.ServiceCity;
-            if (!string.IsNullOrEmpty(dto.ServiceDistrict)) company.ServiceDistrict = dto.ServiceDistrict;
-            if (!string.IsNullOrEmpty(dto.Email)) company.Email = dto.Email;
-            if (dto.IsActive.HasValue) company.IsActive = dto.IsActive.Value;
-            company.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
-            return Ok(_mapper.Map<CompanyDto>(company));
+            var result = await _companyService.UpdateCompanyAsync(id, dto);
+            
+            if (!result.Success)
+            {
+                return NotFound(new { message = result.ErrorMessage });
+            }
+
+            return Ok(result.Data);
         }
 
         /// <summary>
@@ -113,10 +113,14 @@ namespace Nearest.Controllers
         {
             var role = User.FindFirst("Role")?.Value;
             if (role != "Admin") return Forbid();
-            var company = await _context.Companies.FirstOrDefaultAsync(c => c.Id == id);
-            if (company == null) return NotFound();
-            _context.Companies.Remove(company);
-            await _context.SaveChangesAsync();
+
+            var result = await _companyService.DeleteCompanyAsync(id);
+            
+            if (!result.Success)
+            {
+                return NotFound(new { message = result.ErrorMessage });
+            }
+
             return Ok(new { message = "Şirket başarıyla silindi." });
         }
 
@@ -131,8 +135,9 @@ namespace Nearest.Controllers
         {
             var role = User.FindFirst("Role")?.Value;
             if (role != "Admin") return Forbid();
-            var towTrucks = await _context.TowTrucks.Include(t => t.Company).ToListAsync();
-            return Ok(_mapper.Map<List<TowTruckDto>>(towTrucks));
+
+            var towTrucks = await _towTruckService.GetAllTowTrucksForAdminAsync();
+            return Ok(towTrucks);
         }
 
         /// <summary>
@@ -140,19 +145,19 @@ namespace Nearest.Controllers
         /// </summary>
         [HttpPut("towtrucks/{id}")]
         [Authorize]
-        public async Task<ActionResult<TowTruckDto>> UpdateTowTruck(int id, [FromBody] Nearest.DTOs.TowTruck.AdminTowTruckUpdateDto dto)
+        public async Task<ActionResult<TowTruckDto>> UpdateTowTruck(int id, [FromBody] AdminTowTruckUpdateDto dto)
         {
             var role = User.FindFirst("Role")?.Value;
             if (role != "Admin") return Forbid();
-            var towTruck = await _context.TowTrucks.FirstOrDefaultAsync(t => t.Id == id);
-            if (towTruck == null) return NotFound();
-            if (!string.IsNullOrEmpty(dto.DriverName)) towTruck.DriverName = dto.DriverName;
-            if (!string.IsNullOrEmpty(dto.LicensePlate)) towTruck.LicensePlate = dto.LicensePlate;
-            if (dto.IsActive.HasValue) towTruck.IsActive = dto.IsActive.Value;
-            if (dto.CompanyId.HasValue) towTruck.CompanyId = dto.CompanyId.Value;
-            towTruck.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
-            return Ok(_mapper.Map<TowTruckDto>(towTruck));
+
+            var result = await _towTruckService.UpdateTowTruckByAdminAsync(id, dto);
+            
+            if (!result.Success)
+            {
+                return NotFound(new { message = result.ErrorMessage });
+            }
+
+            return Ok(result.Data);
         }
 
         /// <summary>
@@ -164,19 +169,30 @@ namespace Nearest.Controllers
         {
             var role = User.FindFirst("Role")?.Value;
             if (role != "Admin") return Forbid();
-            var towTruck = await _context.TowTrucks.FirstOrDefaultAsync(t => t.Id == id);
-            if (towTruck == null) return NotFound();
-            _context.TowTrucks.Remove(towTruck);
-            await _context.SaveChangesAsync();
+
+            var result = await _towTruckService.DeleteTowTruckByAdminAsync(id);
+            
+            if (!result.Success)
+            {
+                return NotFound(new { message = result.ErrorMessage });
+            }
+
             return Ok(new { message = "Çekici başarıyla silindi." });
         }
 
+        // --- ADDRESS UPDATE ---
+
+        /// <summary>
+        /// Türkiye adres verilerini günceller
+        /// 
         /// Güncelleme işlemi:
         /// - 81 ili ve tüm ilçeleri çeker
         /// - Yeni kayıtları ekler, mevcut kayıtları günceller
         /// - İl-ilçe ilişkilerini kurar
+        /// 
         /// Yetkilendirme: Sadece Admin rolüne sahip kullanıcılar bu işlemi yapabilir.
         /// Bu işlem uzun sürebilir (81 il × ~100+ ilçe).
+        /// </summary>
         [HttpPut("address")]
         [Authorize]
         public async Task<ActionResult<string>> UpdateAddress()
@@ -191,12 +207,17 @@ namespace Nearest.Controllers
             return Ok(new { message = result });
         }
 
+        // --- TICKETS ---
 
+        /// <summary>
+        /// Tüm ticket'ları listeler
+        /// 
         /// Dönen veriler:
         /// - Ticket bilgileri (konu, mesaj, durum)
         /// - İlgili firma bilgileri (varsa)
         /// - Oluşturulma tarihi
         /// - Durum bilgisi
+        /// </summary>
         [HttpGet("tickets")]
         [Authorize]
         public async Task<ActionResult<List<Ticket>>> GetAllTickets()

@@ -48,6 +48,8 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<ITowTruckService, TowTruckService>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<IAbuseReportService, AbuseReportService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<ICompanyService, CompanyService>();
 
 // Address Services
 builder.Services.AddScoped<IAddressService, AddressService>();
@@ -58,6 +60,7 @@ builder.Services.AddScoped<Nearest.Repositories.ICityRepository, Nearest.Reposit
 builder.Services.AddScoped<Nearest.Repositories.IDistrictRepository, Nearest.Repositories.DistrictRepository>();
 builder.Services.AddScoped<Nearest.Repositories.ICityDistrictRepository, Nearest.Repositories.CityDistrictRepository>();
 builder.Services.AddScoped<Nearest.Repositories.IAdminRepository, Nearest.Repositories.AdminRepository>();
+builder.Services.AddScoped<Nearest.Repositories.ICompanyRepository, Nearest.Repositories.CompanyRepository>();
 
 // HttpClient for external API calls
 builder.Services.AddHttpClient();
