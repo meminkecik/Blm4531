@@ -89,5 +89,6 @@ namespace Nearest.Models
 
         // Navigation properties
         public virtual ICollection<Ticket> Tickets { get; set; } = new List<Ticket>();
+        public virtual ICollection<TowTruck> TowTrucks { get; set; } = new List<TowTruck>();
     }
 }
