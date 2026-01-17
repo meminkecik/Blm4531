@@ -18,11 +18,21 @@ namespace Nearest.DTOs.TowTruck
 		public int CompanyId { get; set; }
 		public string CompanyName { get; set; } = string.Empty;
 		public string CompanyPhone { get; set; } = string.Empty;
+		public string? CompanyEmail { get; set; }
+		public string? CompanyAddress { get; set; }
+		public string? CompanyCity { get; set; }
+		public string? CompanyDistrict { get; set; }
 		public double? Distance { get; set; } // Kullanıcıya olan mesafe (km)
 
 		// Puan ve yorum bilgileri
 		public double AverageRating { get; set; } // 5 üzerinden ortalama puan
 		public int ReviewCount { get; set; } // Toplam yorum sayısı
+
+		/// <summary>
+		/// Bu kayıt sadece firma mı (çekicisi yok)?
+		/// true: Çekicisi olmayan firma, false: Çekici kaydı
+		/// </summary>
+		public bool IsCompanyOnly { get; set; } = false;
 	}
 
 	public class TowTruckAreaDto

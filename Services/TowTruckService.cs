@@ -381,8 +381,144 @@ namespace Nearest.Services
 				_logger.LogInformation($"Adım 3 - Tüm Türkiye: {allOtherTowTrucks.Count} yeni çekici bulundu, toplam: {result.Count}");
 			}
 
+			// ============ ADIM 4: Çekicisi olmayan firmalar ============
+			// Sayfa dolu görünsün diye, çekicisi olmayan ama il/ilçe eşleşen firmaları ekle
+			if (result.Count < limit)
+			{
+				// Çekicisi olan firma ID'lerini al
+				var companiesWithTowTrucks = await _context.TowTrucks
+					.Where(t => t.IsActive)
+					.Select(t => t.CompanyId)
+					.Distinct()
+					.ToListAsync();
+
+				// Çekicisi olmayan aktif firmaları getir
+				var companiesQuery = _context.Companies
+					.Where(c => c.IsActive)
+					.Where(c => !companiesWithTowTrucks.Contains(c.Id));
+
+				// İl/ilçe filtreleme
+				if (districtId.HasValue)
+				{
+					// Önce ilçe eşleşenler
+					var districtCompanies = await companiesQuery
+						.Where(c => c.DistrictId == districtId.Value)
+						.ToListAsync();
+					
+					var companyDtos = MapCompaniesToTowTruckDto(districtCompanies, latitude, longitude, hasGeoPoint);
+					AddCompaniesToResult(result, companyDtos, limit);
+					
+					_logger.LogInformation($"Adım 4a - İlçe firmaları ({districtId}): {districtCompanies.Count} firma bulundu, toplam: {result.Count}");
+				}
+
+				if (provinceId.HasValue && result.Count < limit)
+				{
+					// Aynı ildeki diğer firmalar
+					var addedCompanyIds = result.Where(r => r.IsCompanyOnly).Select(r => r.CompanyId).ToHashSet();
+					
+					var provinceCompanies = await companiesQuery
+						.Where(c => c.ProvinceId == provinceId.Value)
+						.ToListAsync();
+					
+					provinceCompanies = provinceCompanies.Where(c => !addedCompanyIds.Contains(c.Id)).ToList();
+					
+					var companyDtos = MapCompaniesToTowTruckDto(provinceCompanies, latitude, longitude, hasGeoPoint);
+					if (hasGeoPoint)
+					{
+						companyDtos = companyDtos.OrderBy(c => c.Distance ?? double.MaxValue).ToList();
+					}
+					AddCompaniesToResult(result, companyDtos, limit);
+					
+					_logger.LogInformation($"Adım 4b - İl firmaları ({provinceId}): {provinceCompanies.Count} firma bulundu, toplam: {result.Count}");
+				}
+
+				// Hala limit dolmadıysa tüm Türkiye'den firmalar
+				if (result.Count < limit)
+				{
+					var addedCompanyIds = result.Where(r => r.IsCompanyOnly).Select(r => r.CompanyId).ToHashSet();
+					
+					var allCompanies = await companiesQuery.ToListAsync();
+					allCompanies = allCompanies.Where(c => !addedCompanyIds.Contains(c.Id)).ToList();
+					
+					var companyDtos = MapCompaniesToTowTruckDto(allCompanies, latitude, longitude, hasGeoPoint);
+					if (hasGeoPoint)
+					{
+						companyDtos = companyDtos.OrderBy(c => c.Distance ?? double.MaxValue).ToList();
+					}
+					else
+					{
+						companyDtos = companyDtos.OrderBy(_ => Guid.NewGuid()).ToList();
+					}
+					AddCompaniesToResult(result, companyDtos, limit);
+					
+					_logger.LogInformation($"Adım 4c - Tüm Türkiye firmaları: {allCompanies.Count} firma bulundu, toplam: {result.Count}");
+				}
+			}
+
 			// Puan bilgilerini ekle
 			return await AddRatingInfoAsync(result);
+		}
+
+		/// <summary>
+		/// Firmaları TowTruckDto formatına çevirir (çekicisi olmayan firmalar için)
+		/// </summary>
+		private List<TowTruckDto> MapCompaniesToTowTruckDto(List<Company> companies, double latitude, double longitude, bool hasGeoPoint)
+		{
+			return companies.Select(c => {
+				var dto = new TowTruckDto
+				{
+					Id = c.Id * -1, // Negatif ID ile çekicilerden ayır
+					LicensePlate = "",
+					DriverName = $"{c.FirstName} {c.LastName}",
+					DriverPhotoUrl = null,
+					IsActive = c.IsActive,
+					CreatedAt = c.CreatedAt,
+					UpdatedAt = c.UpdatedAt,
+					OperatingAreas = new List<TowTruckAreaDto>
+					{
+						new TowTruckAreaDto
+						{
+							ProvinceId = c.ProvinceId,
+							DistrictId = c.DistrictId,
+							City = c.City,
+							District = c.District
+						}
+					},
+					CompanyId = c.Id,
+					CompanyName = c.CompanyName,
+					CompanyPhone = c.PhoneNumber,
+					CompanyEmail = c.Email,
+					CompanyAddress = c.FullAddress,
+					CompanyCity = c.City,
+					CompanyDistrict = c.District,
+					IsCompanyOnly = true,
+					AverageRating = 0,
+					ReviewCount = 0
+				};
+
+				if (hasGeoPoint && c.Latitude.HasValue && c.Longitude.HasValue)
+				{
+					dto.Distance = _locationService.CalculateDistance(
+						latitude,
+						longitude,
+						c.Latitude.Value,
+						c.Longitude.Value);
+				}
+
+				return dto;
+			}).ToList();
+		}
+
+		/// <summary>
+		/// Firma DTO'larını sonuç listesine ekler
+		/// </summary>
+		private void AddCompaniesToResult(List<TowTruckDto> result, List<TowTruckDto> companies, int limit)
+		{
+			foreach (var dto in companies)
+			{
+				if (result.Count >= limit) break;
+				result.Add(dto);
+			}
 		}
 
 		/// <summary>
