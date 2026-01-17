@@ -345,10 +345,11 @@ namespace Nearest.Services
 				_logger.LogInformation($"Adım 2 - İl ({provinceId}): {provinceTowTrucks.Count} çekici bulundu, toplam: {result.Count}");
 			}
 
-			// ============ ADIM 3: Komşu illerdeki çekiciler ============
-			if (hasGeoPoint && result.Count < limit)
+			// ============ ADIM 3: Diğer illerdeki çekiciler ============
+			// Koordinat varsa mesafeye göre, yoksa rastgele sırala
+			if (result.Count < limit)
 			{
-				// Tüm illerdeki çekicileri getir ve mesafeye göre sırala
+				// Tüm illerdeki çekicileri getir
 				// Ancak zaten eklenmiş olanları hariç tut
 				var allOtherTowTrucks = await _context.TowTrucks
 					.Where(t => t.IsActive)
@@ -357,32 +358,24 @@ namespace Nearest.Services
 					.Include(t => t.OperatingAreas)
 					.ToListAsync();
 
-				var dtos = MapAndCalculateDistance(allOtherTowTrucks, latitude, longitude, hasGeoPoint);
+				List<TowTruckDto> dtos;
 				
-				// Mesafeye göre sırala - en yakından en uzağa
-				dtos = dtos.OrderBy(d => d.Distance ?? double.MaxValue).ToList();
+				if (hasGeoPoint)
+				{
+					// Koordinat varsa mesafeye göre sırala
+					dtos = MapAndCalculateDistance(allOtherTowTrucks, latitude, longitude, hasGeoPoint);
+					dtos = dtos.OrderBy(d => d.Distance ?? double.MaxValue).ToList();
+					_logger.LogInformation($"Adım 3 - Tüm Türkiye (mesafeye göre): {allOtherTowTrucks.Count} çekici bulundu, toplam: {result.Count}");
+				}
+				else
+				{
+					// Koordinat yoksa rastgele sırala
+					var shuffled = allOtherTowTrucks.OrderBy(x => Guid.NewGuid()).ToList();
+					dtos = _mapper.Map<List<TowTruckDto>>(shuffled);
+					_logger.LogInformation($"Adım 3 - Tüm Türkiye (rastgele): {allOtherTowTrucks.Count} çekici bulundu, toplam: {result.Count}");
+				}
 				
 				AddToResult(result, dtos, addedTowTruckIds, limit);
-				
-				_logger.LogInformation($"Adım 3 - Tüm Türkiye: {allOtherTowTrucks.Count} çekici bulundu, toplam: {result.Count}");
-			}
-
-			// ============ ADIM 4: Konum yoksa rastgele çekiciler ============
-			if (!hasGeoPoint && result.Count < limit)
-			{
-				var randomTowTrucks = await _context.TowTrucks
-					.Where(t => t.IsActive)
-					.Where(t => !addedTowTruckIds.Contains(t.Id))
-					.Include(t => t.Company)
-					.Include(t => t.OperatingAreas)
-					.OrderBy(t => Guid.NewGuid()) // Rastgele sıralama
-					.Take(limit - result.Count)
-					.ToListAsync();
-
-				var dtos = _mapper.Map<List<TowTruckDto>>(randomTowTrucks);
-				AddToResult(result, dtos, addedTowTruckIds, limit);
-				
-				_logger.LogInformation($"Adım 4 - Rastgele: {randomTowTrucks.Count} çekici eklendi, toplam: {result.Count}");
 			}
 
 			// Puan bilgilerini ekle
