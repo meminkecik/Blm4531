@@ -5,6 +5,7 @@ using Nearest.DTOs;
 using Nearest.Models;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Nearest.Services
 {
