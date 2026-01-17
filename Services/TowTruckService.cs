@@ -1,6 +1,7 @@
 using AutoMapper;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Nearest.Data;
 using Nearest.DTOs.TowTruck;
 using Nearest.Models;
@@ -15,14 +16,22 @@ namespace Nearest.Services
 		private readonly IAddressService _addressService;
 		private readonly IWebHostEnvironment _env;
 		private readonly ILocationService _locationService;
+		private readonly ILogger<TowTruckService> _logger;
 
-		public TowTruckService(ApplicationDbContext context, IMapper mapper, IAddressService addressService, IWebHostEnvironment env, ILocationService locationService)
+		public TowTruckService(
+			ApplicationDbContext context, 
+			IMapper mapper, 
+			IAddressService addressService, 
+			IWebHostEnvironment env, 
+			ILocationService locationService,
+			ILogger<TowTruckService> logger)
 		{
 			_context = context;
 			_mapper = mapper;
 			_addressService = addressService;
 			_env = env;
 			_locationService = locationService;
+			_logger = logger;
 		}
 
 		/// <summary>
@@ -272,98 +281,149 @@ namespace Nearest.Services
 			return await AddRatingInfoAsync(result);
 		}
 		
+		/// <summary>
+		/// En yakın çekicileri getirir - Kademeli arama algoritması
+		/// 
+		/// Algoritma Sırası:
+		/// 1. Kullanıcının ilçesinde hizmet veren çekiciler
+		/// 2. Aynı ildeki diğer ilçelerde hizmet verenler (mesafeye göre sıralı)
+		/// 3. Komşu illerdeki çekiciler (mesafeye göre sıralı)
+		/// 4. Tüm Türkiye'den en yakın çekiciler
+		/// 
+		/// Her adımda limit dolana kadar devam eder.
+		/// </summary>
 		public async Task<List<TowTruckDto>> GetNearestTowTrucksAsync(
 			double latitude,
 			double longitude,
-			int limit = 10,
+			int limit = 20,
 			int? provinceId = null,
 			int? districtId = null)
 		{
-			var baseQuery = _context.TowTrucks
-				.Where(t => t.IsActive)
-				.Include(t => t.Company)
-				.Include(t => t.OperatingAreas);
+			var result = new List<TowTruckDto>();
+			var addedTowTruckIds = new HashSet<int>(); // Tekrar eklemeyi önlemek için
+			
+			var hasGeoPoint = !double.IsNaN(latitude) && !double.IsNaN(longitude) 
+			                  && latitude != 0 && longitude != 0;
 
-			List<TowTruck> towTrucks = new List<TowTruck>();
-
-			// Adım 1: İlçeye göre filtrele
-			if (districtId.HasValue)
+			// ============ ADIM 1: Kullanıcının ilçesindeki çekiciler ============
+			if (districtId.HasValue && result.Count < limit)
 			{
-				towTrucks = await baseQuery
+				var districtTowTrucks = await _context.TowTrucks
+					.Where(t => t.IsActive)
 					.Where(t => t.OperatingAreas.Any(a => a.DistrictId == districtId.Value))
+					.Include(t => t.Company)
+					.Include(t => t.OperatingAreas)
 					.ToListAsync();
 
-				// Adım 2: İlçede çekici yoksa, aynı ildeki diğer ilçelere bak
-				if (!towTrucks.Any() && provinceId.HasValue)
-				{
-					towTrucks = await baseQuery
-						.Where(t => t.OperatingAreas.Any(a => a.ProvinceId == provinceId.Value))
-						.ToListAsync();
-				}
+				var dtos = MapAndCalculateDistance(districtTowTrucks, latitude, longitude, hasGeoPoint);
+				AddToResult(result, dtos, addedTowTruckIds, limit);
+				
+				_logger.LogInformation($"Adım 1 - İlçe ({districtId}): {districtTowTrucks.Count} çekici bulundu, toplam: {result.Count}");
 			}
 
-			// Adım 3: Hala çekici yoksa, ile göre filtrele
-			if (!towTrucks.Any() && provinceId.HasValue)
+			// ============ ADIM 2: Aynı ildeki diğer ilçelerdeki çekiciler ============
+			if (provinceId.HasValue && result.Count < limit)
 			{
-				towTrucks = await baseQuery
+				var provinceTowTrucks = await _context.TowTrucks
+					.Where(t => t.IsActive)
+					.Where(t => !addedTowTruckIds.Contains(t.Id)) // Zaten eklenmişleri hariç tut
 					.Where(t => t.OperatingAreas.Any(a => a.ProvinceId == provinceId.Value))
+					.Include(t => t.Company)
+					.Include(t => t.OperatingAreas)
 					.ToListAsync();
-			}
 
-			// Adım 4: Hala çekici yoksa, tüm aktif çekicileri getir
-			if (!towTrucks.Any())
-			{
-				towTrucks = await baseQuery.ToListAsync();
-			}
-
-			// Eğer hala hiç çekici yoksa, boş liste döndür
-			if (!towTrucks.Any())
-			{
-				return new List<TowTruckDto>();
-			}
-
-			// Mesafe hesaplama - Company zaten Include ile yüklenmiş durumda
-			var hasGeoPoint = !double.IsNaN(latitude) && !double.IsNaN(longitude);
-			if (hasGeoPoint)
-			{
-				foreach (var towTruck in towTrucks)
+				var dtos = MapAndCalculateDistance(provinceTowTrucks, latitude, longitude, hasGeoPoint);
+				
+				// Mesafeye göre sırala
+				if (hasGeoPoint)
 				{
-					if (towTruck.Company?.Latitude != null && towTruck.Company?.Longitude != null)
-					{
-						var distance = _locationService.CalculateDistance(
-							latitude,
-							longitude,
-							towTruck.Company.Latitude.Value,
-							towTruck.Company.Longitude.Value);
-							
-						// Distance'ı entity üzerinde tutmak için geçici bir property ekleyebiliriz
-						// Ama şimdilik DTO'ya map ettikten sonra set edeceğiz
-					}
+					dtos = dtos.OrderBy(d => d.Distance ?? double.MaxValue).ToList();
 				}
-
-				// DTO'lara map et ve distance'ları ayarla
-				var towTruckDtos = towTrucks.Select(tt => {
-					var dto = _mapper.Map<TowTruckDto>(tt);
-					if (tt.Company?.Latitude != null && tt.Company?.Longitude != null)
-					{
-						dto.Distance = _locationService.CalculateDistance(
-							latitude,
-							longitude,
-							tt.Company.Latitude.Value,
-							tt.Company.Longitude.Value);
-					}
-					return dto;
-				}).OrderBy(t => t.Distance ?? double.MaxValue)
-				  .Take(limit)
-				  .ToList();
-
-				return await AddRatingInfoAsync(towTruckDtos);
+				
+				AddToResult(result, dtos, addedTowTruckIds, limit);
+				
+				_logger.LogInformation($"Adım 2 - İl ({provinceId}): {provinceTowTrucks.Count} çekici bulundu, toplam: {result.Count}");
 			}
-			else
+
+			// ============ ADIM 3: Komşu illerdeki çekiciler ============
+			if (hasGeoPoint && result.Count < limit)
 			{
-				var towTruckDtos = _mapper.Map<List<TowTruckDto>>(towTrucks);
-				var result = towTruckDtos.Take(limit).ToList();
-				return await AddRatingInfoAsync(result);
+				// Tüm illerdeki çekicileri getir ve mesafeye göre sırala
+				// Ancak zaten eklenmiş olanları hariç tut
+				var allOtherTowTrucks = await _context.TowTrucks
+					.Where(t => t.IsActive)
+					.Where(t => !addedTowTruckIds.Contains(t.Id))
+					.Include(t => t.Company)
+					.Include(t => t.OperatingAreas)
+					.ToListAsync();
+
+				var dtos = MapAndCalculateDistance(allOtherTowTrucks, latitude, longitude, hasGeoPoint);
+				
+				// Mesafeye göre sırala - en yakından en uzağa
+				dtos = dtos.OrderBy(d => d.Distance ?? double.MaxValue).ToList();
+				
+				AddToResult(result, dtos, addedTowTruckIds, limit);
+				
+				_logger.LogInformation($"Adım 3 - Tüm Türkiye: {allOtherTowTrucks.Count} çekici bulundu, toplam: {result.Count}");
+			}
+
+			// ============ ADIM 4: Konum yoksa rastgele çekiciler ============
+			if (!hasGeoPoint && result.Count < limit)
+			{
+				var randomTowTrucks = await _context.TowTrucks
+					.Where(t => t.IsActive)
+					.Where(t => !addedTowTruckIds.Contains(t.Id))
+					.Include(t => t.Company)
+					.Include(t => t.OperatingAreas)
+					.OrderBy(t => Guid.NewGuid()) // Rastgele sıralama
+					.Take(limit - result.Count)
+					.ToListAsync();
+
+				var dtos = _mapper.Map<List<TowTruckDto>>(randomTowTrucks);
+				AddToResult(result, dtos, addedTowTruckIds, limit);
+				
+				_logger.LogInformation($"Adım 4 - Rastgele: {randomTowTrucks.Count} çekici eklendi, toplam: {result.Count}");
+			}
+
+			// Puan bilgilerini ekle
+			return await AddRatingInfoAsync(result);
+		}
+
+		/// <summary>
+		/// TowTruck listesini DTO'ya çevirir ve mesafe hesaplar
+		/// </summary>
+		private List<TowTruckDto> MapAndCalculateDistance(List<TowTruck> towTrucks, double latitude, double longitude, bool hasGeoPoint)
+		{
+			return towTrucks.Select(tt => {
+				var dto = _mapper.Map<TowTruckDto>(tt);
+				
+				if (hasGeoPoint && tt.Company?.Latitude != null && tt.Company?.Longitude != null)
+				{
+					dto.Distance = _locationService.CalculateDistance(
+						latitude,
+						longitude,
+						tt.Company.Latitude.Value,
+						tt.Company.Longitude.Value);
+				}
+				
+				return dto;
+			}).ToList();
+		}
+
+		/// <summary>
+		/// DTO listesini sonuç listesine ekler (limit'e kadar)
+		/// </summary>
+		private void AddToResult(List<TowTruckDto> result, List<TowTruckDto> toAdd, HashSet<int> addedIds, int limit)
+		{
+			foreach (var dto in toAdd)
+			{
+				if (result.Count >= limit) break;
+				
+				if (!addedIds.Contains(dto.Id))
+				{
+					result.Add(dto);
+					addedIds.Add(dto.Id);
+				}
 			}
 		}
 
