@@ -326,11 +326,13 @@ namespace Nearest.Services
 			{
 				var provinceTowTrucks = await _context.TowTrucks
 					.Where(t => t.IsActive)
-					.Where(t => !addedTowTruckIds.Contains(t.Id)) // Zaten eklenmişleri hariç tut
 					.Where(t => t.OperatingAreas.Any(a => a.ProvinceId == provinceId.Value))
 					.Include(t => t.Company)
 					.Include(t => t.OperatingAreas)
 					.ToListAsync();
+
+				// Client-side: Zaten eklenmişleri hariç tut
+				provinceTowTrucks = provinceTowTrucks.Where(t => !addedTowTruckIds.Contains(t.Id)).ToList();
 
 				var dtos = MapAndCalculateDistance(provinceTowTrucks, latitude, longitude, hasGeoPoint);
 				
@@ -349,14 +351,15 @@ namespace Nearest.Services
 			// Koordinat varsa mesafeye göre, yoksa rastgele sırala
 			if (result.Count < limit)
 			{
-				// Tüm illerdeki çekicileri getir
-				// Ancak zaten eklenmiş olanları hariç tut
+				// Tüm çekicileri getir
 				var allOtherTowTrucks = await _context.TowTrucks
 					.Where(t => t.IsActive)
-					.Where(t => !addedTowTruckIds.Contains(t.Id))
 					.Include(t => t.Company)
 					.Include(t => t.OperatingAreas)
 					.ToListAsync();
+
+				// Client-side: Zaten eklenmişleri hariç tut
+				allOtherTowTrucks = allOtherTowTrucks.Where(t => !addedTowTruckIds.Contains(t.Id)).ToList();
 
 				List<TowTruckDto> dtos;
 				
@@ -365,17 +368,17 @@ namespace Nearest.Services
 					// Koordinat varsa mesafeye göre sırala
 					dtos = MapAndCalculateDistance(allOtherTowTrucks, latitude, longitude, hasGeoPoint);
 					dtos = dtos.OrderBy(d => d.Distance ?? double.MaxValue).ToList();
-					_logger.LogInformation($"Adım 3 - Tüm Türkiye (mesafeye göre): {allOtherTowTrucks.Count} çekici bulundu, toplam: {result.Count}");
 				}
 				else
 				{
 					// Koordinat yoksa rastgele sırala
-					var shuffled = allOtherTowTrucks.OrderBy(x => Guid.NewGuid()).ToList();
-					dtos = _mapper.Map<List<TowTruckDto>>(shuffled);
-					_logger.LogInformation($"Adım 3 - Tüm Türkiye (rastgele): {allOtherTowTrucks.Count} çekici bulundu, toplam: {result.Count}");
+					allOtherTowTrucks = allOtherTowTrucks.OrderBy(x => Guid.NewGuid()).ToList();
+					dtos = _mapper.Map<List<TowTruckDto>>(allOtherTowTrucks);
 				}
 				
 				AddToResult(result, dtos, addedTowTruckIds, limit);
+				
+				_logger.LogInformation($"Adım 3 - Tüm Türkiye: {allOtherTowTrucks.Count} yeni çekici bulundu, toplam: {result.Count}");
 			}
 
 			// Puan bilgilerini ekle
