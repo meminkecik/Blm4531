@@ -54,7 +54,7 @@ namespace Nearest.Data
             modelBuilder.Entity<TowTruck>(entity =>
             {
                 entity.HasOne(t => t.Company)
-                      .WithMany()
+                      .WithMany(c => c.TowTrucks)
                       .HasForeignKey(t => t.CompanyId)
                       .OnDelete(DeleteBehavior.Cascade);
                 // Plaka sistem genelinde benzersiz
