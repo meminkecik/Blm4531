@@ -175,24 +175,29 @@ namespace Nearest.Services
                 }
 
                 var content = await response.Content.ReadAsStringAsync();
+                _logger.LogInformation($"Nominatim response: {content}");
+                
                 var geocodeResponse = JsonSerializer.Deserialize<NominatimResponse>(content);
                 
                 if (geocodeResponse == null || geocodeResponse.Address == null)
                 {
-                    _logger.LogError("Failed to parse geocode response");
+                    _logger.LogError($"Failed to parse geocode response. Content was: {content}");
                     return (null, null);
                 }
+                
+                _logger.LogInformation($"Parsed address - Province: {geocodeResponse.Address.Province}, City: {geocodeResponse.Address.City}, State: {geocodeResponse.Address.State}, District: {geocodeResponse.Address.District}, Town: {geocodeResponse.Address.Town}, County: {geocodeResponse.Address.County}, Suburb: {geocodeResponse.Address.Suburb}");
 
                 // Extract province and district from the response
                 // OpenStreetMap API has inconsistent field usage:
                 // - Province can be in "province", "city", or "state" fields
-                // - District can be in "district", "town", or "county" fields
+                // - District can be in "district", "town", "suburb", or "county" fields
                 string? provinceName = geocodeResponse.Address.Province ?? 
                                       geocodeResponse.Address.City ?? 
                                       geocodeResponse.Address.State;
                 
                 string? districtName = geocodeResponse.Address.District ?? 
                                       geocodeResponse.Address.Town ?? 
+                                      geocodeResponse.Address.Suburb ??
                                       geocodeResponse.Address.County;
 
                 if (string.IsNullOrEmpty(provinceName))
@@ -243,17 +248,35 @@ namespace Nearest.Services
         // Helper class for deserializing Nominatim response
         private class NominatimResponse
         {
+            [JsonPropertyName("address")]
             public NominatimAddress? Address { get; set; }
         }
 
         private class NominatimAddress
         {
+            [JsonPropertyName("city")]
             public string? City { get; set; }
+            
+            [JsonPropertyName("town")]
             public string? Town { get; set; }
+            
+            [JsonPropertyName("province")]
             public string? Province { get; set; }
+            
+            [JsonPropertyName("state")]
             public string? State { get; set; }
+            
+            [JsonPropertyName("county")]
             public string? County { get; set; }
+            
+            [JsonPropertyName("district")]
             public string? District { get; set; }
+            
+            [JsonPropertyName("suburb")]
+            public string? Suburb { get; set; }
+            
+            [JsonPropertyName("neighbourhood")]
+            public string? Neighbourhood { get; set; }
         }
     }
 }
